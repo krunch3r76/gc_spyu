@@ -39,7 +39,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
 
         else:
             pass
-            # print(f"repr of {type(event)}: {event}\n")
+            print(f"repr of {type(event)}: {event}\n")
         super().log(event)
 
 async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
