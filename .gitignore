@@ -1,0 +1,15 @@
+__pycache__/
+*.gvmi
+gc__*
+result.bin
+*.swp
+stderr
+*.log
+hooks
+*.so
+*.il
+*.o
+*-venv
+test.py
+**myvenv
+output*.txt
