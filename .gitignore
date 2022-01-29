@@ -13,3 +13,5 @@ hooks
 test.py
 **myvenv
 output*.txt
+tmp/
+bench/

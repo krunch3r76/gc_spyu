@@ -80,7 +80,7 @@ class FilterProviderMS(MarketStrategy):
         score = None
         name = offer.props["golem.node.id.name"]
         if offer.issuer in self._blacklist:
-            print("REJECTED BECAUSE HOT BLACKLISTED!")
+            print(f"REJECTED {name} at {offer.issuer} BECAUSE HOT BLACKLISTED!")
             return SCORE_REJECTED
 
         try: 
@@ -111,7 +111,7 @@ class FilterProviderMS(MarketStrategy):
                     score = SCORE_REJECTED
 
                 if score != SCORE_REJECTED and score != None:
-                    print(f'[filterms] ACCEPTED offer from {name} scored at: {score}', file=sys.stderr, flush=True)
+                    print(f'[filterms] ACCEPTED offer from {name} {offer.issuer} id: {offer.id} scored at: {score}', file=sys.stderr, flush=True)
                     if VERBOSE:
                         print(f'\n{offer.props}\n')
                 else:
