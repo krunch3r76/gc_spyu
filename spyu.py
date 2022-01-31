@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 import pprint
 import pathlib
 import debug
+import traceback
 
 from marshal_result import marshal_result
 
@@ -28,7 +29,8 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         self._last_node_address= ''
         self._last_timestamp=Decimal('0.0')
 
-        self._internal_log = open("summarylogger.log", "w")
+        debug.dlog("creating summarylogger.log file", 10)
+        self._internal_log = open("summarylogger.log", "w", buffering=1)
 
     def __del__(self):
         self._internal_log.close()
@@ -43,7 +45,6 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                 name
                 subnet_tag
             """
-            # self._blacklist.add(event.provider_id)
             _last_node_name=event.provider_info.name
             _last_node_address=event.provider_id
             _last_timestamp=Decimal(str(datetime.now().timestamp()))
@@ -51,27 +52,37 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                     , 'address': _last_node_address
                     , 'timestamp': str(_last_timestamp)
             }
+            debug.dlog(f"agreement created with agr_id: {event.agr_id}")
         elif isinstance(event, yapapi.events.TaskAccepted):
             debug.dlog(event)
-            agr_id = event.result.agr_id
-            print(f"\033[1m--------blacklisting {self.id_to_info[agr_id]['name']} because of task accepted\033[0m")
-            # print(f"\033[2m{event}\033[0m")
+            agr_id = event.result['agr_id']
+            debug.dlog(f"--------blacklisting {self.id_to_info[agr_id]['name']} because of task accepted")
             self._blacklist.add(self.id_to_info[agr_id]['address'])
-        # elif isinstance(event, yapapi.events.ActivityCreateFailed):
-        #    print(f"\033[1m--------blacklisting {self.id_to_info[event.agr_id]['name']} because of failure\033[0m")
-        #    self._blacklist.add(self.id_to_info[event.agr_id]['address'])
-            # TODO maybe blacklist when activity fails cmd execution error --> followed up with Terminated agreement
-        else:
-            self._internal_log.write(f"{type(event)}: {event}\n")
-            pass
-            # print(f"\033[3mrepr of\033[0m {type(event)}: {event}")
+        elif isinstance(event, yapapi.events.WorkerFinished):
+            debug.dlog(event)
+            if event.exc_info != None and len(event.exc_info) > 0:
+                debug.dlog(f"Worker finished but threw the exception {event.exc_info[1]}")
+        elif isinstance(event, yapapi.events.ActivityCreateFailed):
+            if len(event.exc_info) > 0:
+                debug.dlog(f"An exception occurred preventing an activity/script from starting.\n"
+                        f"{event.exc_info[1]}"
+                        )
+        self._internal_log.write(f"\n-----\n{event}\n-------\n")
 
         super().log(event)
 
+
+
+
 async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
     async for task in tasks:
+        debug.dlog("hello from worker")
+        debug.dlog(f"starting work: id: {context.id}, {context.provider_name}, {context.provider_id}")
+        debug.dlog(context._agreement_details)
+        agr_id=context._agreement_details.agreement_id
+        debug.dlog(f"the agreement id is: {agr_id}")
         """
-        context.id -> activity id
+        context.id -> activity id; same as ActivityCreated :event.act_id (stored 
         context.provider_name -> name of provider
         context.provider_id -> node address
         context._agreement_details.raw_details.offer -> offer
@@ -85,10 +96,11 @@ async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
         # and keep an in-memory database of scored in addition to the static db
         """
 
-        script = context.new_script(timeout=timedelta(minutes=1))
+        script = context.new_script()
+        # script = context.new_script(timeout=timedelta(minutes=2))
         # script.run("/bin/sh", "-c", "/root/provider.sh", context.provider_name, context.provider_id)
         script.run("/root/provider.sh", context.provider_name, context.provider_id)
-        target=f"/tmp/{context.provider_id}.svg"
+        target=f"./download/{context.provider_id}.svg"
         script.download_file(f"/golem/output/topology.svg", target)
         try:
             yield script
@@ -98,8 +110,19 @@ async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
             raise
             # instead reject and handle elsewhere
         else:
-            task.accept_result(result=context.provider_id)
+            # place result along with meta into a dict
+            result_dict= { 'agr_id': agr_id
+                    , 'graphical_output_file': target
+                    , 'provider_id': context.provider_id
+            }
+            task.accept_result(result_dict)
 
+
+def print_result_summary(result_summary):
+    result_summary['provider_id']=mySummaryLogger._last_node_address
+    result_summary['provider_name']=mySummaryLogger._last_node_name
+    result_summary['timestamp']=str(mySummaryLogger._last_timestamp)
+    result_summary['info']=raw_parse
 
 
 async def on_executed_task(completed):
@@ -118,10 +141,6 @@ async def on_executed_task(completed):
     result_summary['timestamp']=info['timestamp']
     result_summary['info']=lscpu
 
-    # result_summary['provider_id']=mySummaryLogger._last_node_address
-    # result_summary['provider_name']=mySummaryLogger._last_node_name
-    # result_summary['timestamp']=str(mySummaryLogger._last_timestamp)
-    # result_summary['info']=raw_parse
 
     # print(f"------\n{result_j}\n------")
 
@@ -169,7 +188,7 @@ async def main():
                     worker
                     , tasks
                     , payload=package
-                    , max_workers=2
+                    , max_workers=1
                     , timeout=timeout
                     ):
                 # await on_executed_task(completed)
