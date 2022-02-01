@@ -1,7 +1,7 @@
 #!/bin/sh
 
-PROVIDERNAME=${1:-'{PROVIDERNAME}'}
-PROVIDERID=${2:-'{PROVIDERID}'}
+PROVIDERNAME=${1:-"\{PROVIDERNAME\}"}
+PROVIDERID=${2:-"\{PROVIDERID\}"}
 UNIXTIME=$3
 WORKDIR=/golem/work
 OUTPUTDIR=/golem/output
@@ -36,14 +36,15 @@ lstopo -i $WORKDIR/topology_host.xml --of svg \
 lstopo -i $WORKDIR/topology_host.xml --of ascii \
 	--append-legend "$(cat $WORKDIR/model)" $WORKDIR/topology.asc
 
+jq -R -s <$WORKDIR/topology.svg >$WORKDIR/topology_svg.jstr
 jq --null-input \
 	--arg unixtime "$UNIXTIME" \
 	--arg name "$PROVIDERNAME" \
 	--arg addr "$PROVIDERID" \
 	--arg model "$(cat $WORKDIR/model)" \
-	--arg svg "$(cat $WORKDIR/topology.svg)" \
+	--slurpfile svg $WORKDIR/topology_svg.jstr \
 	--arg asc "$(cat $WORKDIR/topology.asc)" \
 	--arg xml "$(cat $WORKDIR/topology.xml)" \
-	'{"unixtime": $unixtime, "name": $name, "addr", $addr, "model": $model, "svg": $svg, "asc": $asc, "xml": $xml}' \
+	'{"unixtime": $unixtime, "name": $name, "addr", $addr, "model": $model, "svg": $svg[0], "asc": $asc, "xml": $xml}' \
 	>$OUTPUTDIR/topology.json
 

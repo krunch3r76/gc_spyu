@@ -109,10 +109,9 @@ async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
         debug.dlog(f"starting work: context id: {context.id}, {context.provider_name}, {context.provider_id}\nagreement id is: {agr_id}")
 
         script = context.new_script(timeout=timedelta(minutes=2))
-        script.run("/root/provider.sh", context.provider_name, context.provider_id)
+        script.run("/root/provider.sh", context.provider_name, context.provider_id, str(datetime.now().timestamp()))
         target=f"{task.data['results-dir']}/{context.provider_id}"
-        script.download_file(f"/golem/output/topology.svg", str(target+".svg"))
-        script.download_file(f"/golem/output/topology.asc", str(target+".asc"))
+        script.download_file(f"/golem/output/topology.json", str(target+".json"))
         try:
             yield script
         except:
@@ -177,7 +176,7 @@ async def main():
     blacklist=set()
     counter=count(1)
     package = await vm.repo(
-        image_hash="2e8bc4d29bc4019b06ebba9e23b81a2e71500a8d436662bcb2b1fafb"
+        image_hash="719736740563a4bb8afd1c8d663655c5984490391909ecaffe1ad603"
     )
 
     tasks = [Task(data={"results-dir": args.results_dir})]

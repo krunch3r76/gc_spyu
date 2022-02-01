@@ -11,7 +11,7 @@ FROM alpine:latest
 VOLUME /golem/work /golem/output
 COPY provider.sh /root
 WORKDIR /root
-RUN apk add --no-cache --virtual myvapk build-base git bash autoconf automake libtool && \
+RUN apk add --no-cache --virtual myvapk build-base git bash autoconf automake libtool librsvg-dev && \
 	apk add --no-cache cairo libxml2 jq && \
 	cd /root && \
 	git clone https://github.com/open-mpi/hwloc && \
