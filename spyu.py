@@ -25,6 +25,8 @@ import argparse
 import sqlite3
 import tempfile
 
+from mysummarylogger import MySummaryLogger
+
 """create_db
 inputs                          process                     output
  dbpath                         setup adapters              conn
@@ -49,56 +51,6 @@ def create_db(dbpath, isolation_level=None):
     """output"""
     return con
 
-
-
-class MySummaryLogger(yapapi.log.SummaryLogger):
-    """intercept events, record agreement info, update linked blacklist"""
-    """id_to_info: { <agr_id> : { name:, address:, timestamp: }, ... }"""
-    def __init__(self, blacklist_ref):
-        self._blacklist = blacklist_ref
-        super().__init__()
-        self.id_to_info=dict()
-
-        self._last_node_name = ''
-        self._last_node_address= ''
-        self._last_timestamp=Decimal('0.0')
-
-        debug.dlog("creating summarylogger.log file", 10)
-        self._internal_log = open("summarylogger.log", "w", buffering=1)
-
-    def __del__(self):
-        self._internal_log.close()
-
-    def log(self, event: yapapi.events.Event) -> None:
-        if isinstance(event, yapapi.events.AgreementCreated):
-            """
-            event: .job_id | .agr_id | .provider_id | .provider_info | .name | .subnet_tag
-            """
-            self.id_to_info[event.agr_id]={ 'name': event.provider_info.name
-                    , 'address': event.provider_id
-                    , 'timestamp': str(Decimal(str(datetime.now().timestamp())))
-            }
-            debug.dlog(f"agreement created with agr_id: {event.agr_id} with provider named: {event.provider_info.name}")
-        elif isinstance(event, yapapi.events.TaskAccepted):
-            agr_id = event.result['agr_id']
-            debug.dlog(f"{event}\n--------blacklisting {self.id_to_info[agr_id]['name']} because of task accepted")
-            self._blacklist.add(self.id_to_info[agr_id]['address'])
-        elif isinstance(event, yapapi.events.WorkerFinished):
-            if event.exc_info != None and len(event.exc_info) > 0:
-                debug.dlog(f"{event}\nWorker associated with agreement id {event.agr_id} finished but threw the exception {event.exc_info[1]}"
-                       "\nWorker name is {self.id_to_info['event.agr_id']}" )
-        elif isinstance(event, yapapi.events.ActivityCreateFailed):
-            if len(event.exc_info) > 0:
-                providerName = self.id_to_info[event.agr_id]['name']
-                debug.dlog(f"{event}\nAn exception occurred preventing an activity/script from starting (provider name {providerName}).\n"
-                        f"{event.exc_info[1]}"
-                        )
-        elif isinstance(event, yapapi.events.ExecutionInterrupted):
-            print("The worker logic was interrupted by an exception: {event.exc_info[1]}")
-
-        self._internal_log.write(f"\n-----\n{event}\n-------\n")
-
-        super().log(event)
 
 
 
