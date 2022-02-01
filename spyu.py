@@ -18,8 +18,27 @@ import debug
 import traceback
 
 from marshal_result import marshal_result
+import utils
+import sys
+import io
+import argparse
+
+
+def print_env_info_once(golem):
+    printed=False
+    def closure():
+        nonlocal printed
+        if printed==False:
+            printed=True
+        utils.print_env_info(golem)
+    return closure
+
+
+
 
 class MySummaryLogger(yapapi.log.SummaryLogger):
+    """intercepts events"""
+    """id_to_info: <agr_id> : { name:, address:, timestamp: }"""
     def __init__(self, blacklist_ref):
         self._blacklist = blacklist_ref
         super().__init__()
@@ -45,14 +64,16 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                 name
                 subnet_tag
             """
+            """
             _last_node_name=event.provider_info.name
             _last_node_address=event.provider_id
             _last_timestamp=Decimal(str(datetime.now().timestamp()))
-            self.id_to_info[event.agr_id]={ 'name': _last_node_name
-                    , 'address': _last_node_address
-                    , 'timestamp': str(_last_timestamp)
+            """
+            self.id_to_info[event.agr_id]={ 'name': event.provider_info.name
+                    , 'address': event.provider_id
+                    , 'timestamp': str(Decimal(str(datetime.now().timestamp())))
             }
-            debug.dlog(f"agreement created with agr_id: {event.agr_id}")
+            debug.dlog(f"agreement created with agr_id: {event.agr_id} with provider named: {event.provider_info.name}")
         elif isinstance(event, yapapi.events.TaskAccepted):
             debug.dlog(event)
             agr_id = event.result['agr_id']
@@ -61,10 +82,12 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         elif isinstance(event, yapapi.events.WorkerFinished):
             debug.dlog(event)
             if event.exc_info != None and len(event.exc_info) > 0:
-                debug.dlog(f"Worker finished but threw the exception {event.exc_info[1]}")
+                debug.dlog(f"Worker associated with agreement id {event.agr_id} finished but threw the exception {event.exc_info[1]}"
+                       "\nWorker name is {self.id_to_info['event.agr_id']}" )
         elif isinstance(event, yapapi.events.ActivityCreateFailed):
             if len(event.exc_info) > 0:
-                debug.dlog(f"An exception occurred preventing an activity/script from starting.\n"
+                providerName = self.id_to_info[event.agr_id]['name']
+                debug.dlog(f"{event}\nAn exception occurred preventing an activity/script from starting (provider name {providerName}).\n"
                         f"{event.exc_info[1]}"
                         )
         self._internal_log.write(f"\n-----\n{event}\n-------\n")
@@ -73,42 +96,27 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
 
 
 
-
 async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
+    """
+    context.id -> activity id; same as ActivityCreated :event.act_id (stored 
+    context.provider_name -> name of provider
+    context.provider_id -> node address
+    context._agreement_details.raw_details.offer -> offer
+    """
+
     async for task in tasks:
-        debug.dlog("hello from worker")
-        debug.dlog(f"starting work: id: {context.id}, {context.provider_name}, {context.provider_id}")
-        debug.dlog(context._agreement_details)
         agr_id=context._agreement_details.agreement_id
-        debug.dlog(f"the agreement id is: {agr_id}")
-        """
-        context.id -> activity id; same as ActivityCreated :event.act_id (stored 
-        context.provider_name -> name of provider
-        context.provider_id -> node address
-        context._agreement_details.raw_details.offer -> offer
-        """
-        """
-        # future_result = script.run("/bin/sh", "-c", "/bin/echo [$(lscpu -J | jq -c),$(lscpu -JC | jq -c)] | sed s/\"field\"/\"k\"/g | sed s/\"data\"/\"v\"/g")
-        # cat /proc/cpuinfo |grep "model name" |head -n1 | sed  -rn 's/^[^:]+:[[:space:]]([^[$]+)$/\1/p'
-        # future_result2 = script.run("/bin/sh", "-c", "cat", "/proc/cpuinfo", "|grep 'model name' |head -n1 | sed  -rn 's/^[^:]+:[[:space:]]([^[$]+)$/\1/p' >/golem/output/model")
+        debug.dlog(f"starting work: context id: {context.id}, {context.provider_name}, {context.provider_id}\nagreement id is: {agr_id}")
 
-        # one way to ensure multiple providers are not assigned is to score only once
-        # and keep an in-memory database of scored in addition to the static db
-        """
-
-        script = context.new_script()
-        # script = context.new_script(timeout=timedelta(minutes=2))
-        # script.run("/bin/sh", "-c", "/root/provider.sh", context.provider_name, context.provider_id)
+        script = context.new_script(timeout=timedelta(minutes=2))
         script.run("/root/provider.sh", context.provider_name, context.provider_id)
-        target=f"./download/{context.provider_id}.svg"
-        script.download_file(f"/golem/output/topology.svg", target)
+        target=f"{task.data['results-dir']}/{context.provider_id}"
+        script.download_file(f"/golem/output/topology.svg", str(target+".svg"))
+        script.download_file(f"/golem/output/topology.asc", str(target+".asc"))
         try:
             yield script
-            # result=await future_result
         except:
-            print("EXCEPTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             raise
-            # instead reject and handle elsewhere
         else:
             # place result along with meta into a dict
             result_dict= { 'agr_id': agr_id
@@ -118,11 +126,10 @@ async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
             task.accept_result(result_dict)
 
 
-def print_result_summary(result_summary):
-    result_summary['provider_id']=mySummaryLogger._last_node_address
-    result_summary['provider_name']=mySummaryLogger._last_node_name
-    result_summary['timestamp']=str(mySummaryLogger._last_timestamp)
-    result_summary['info']=raw_parse
+
+
+
+
 
 
 async def on_executed_task(completed):
@@ -160,13 +167,20 @@ async def on_executed_task(completed):
 
 
 async def main():
+    glmSpent=Decimal(0.0)
+    parser = utils.build_parser("spyu : a provider cpu topology inspector")
+    parser.add_argument("--results-dir", help="where to store downloaded task results", default="/tmp/task_results")
+    # parser.add_argument("--max-budget", help="maximum total budget", default=Decimal(1))
+    args=parser.parse_args()
+
+    enable_default_logger(log_file=args.log_file)
     blacklist=set()
     counter=count(1)
     package = await vm.repo(
-        image_hash="677aa326a246e0671240edf0fdd954749b43d1b8b1a68ccae516d1d2",
+        image_hash="2e8bc4d29bc4019b06ebba9e23b81a2e71500a8d436662bcb2b1fafb"
     )
 
-    tasks = [Task(data=None)]
+    tasks = [Task(data={"results-dir": args.results_dir})]
     mySummaryLogger=MySummaryLogger(blacklist)
     CPUmax=Decimal("0.5")
     ENVmax=Decimal("0.18")
@@ -182,8 +196,17 @@ async def main():
     while datetime.now() - timestart < timedelta(minutes=1):
         print("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+")
         timeout=timedelta(minutes=10)
-        async with Golem(budget=1.0, subnet_tag="devnet-beta", event_consumer=mySummaryLogger.log, strategy=FilterProviderMS(blacklist, strat)
+        async with Golem(
+                budget=0.1
+                , subnet_tag=args.subnet_tag
+                , payment_driver=args.payment_driver
+                , payment_network=args.payment_network
+                , event_consumer=mySummaryLogger.log
+                , strategy=FilterProviderMS(blacklist, strat)
+                , stream_output=False
                 ) as golem:
+
+            print_env_info_once(golem)
             async for completed in golem.execute_tasks(
                     worker
                     , tasks
@@ -191,6 +214,7 @@ async def main():
                     , max_workers=1
                     , timeout=timeout
                     ):
+                # print(completed.result['stdout'])
                 # await on_executed_task(completed)
                 timestart=datetime.now()
 
@@ -199,8 +223,14 @@ async def main():
 
 
 if __name__ == "__main__":
-    enable_default_logger(log_file="spyu.log")
     debug.dlog("starting")
-    loop = asyncio.get_event_loop()
-    task = loop.create_task(main())
-    loop.run_until_complete(task)
+    utils.run_golem_example(main())
+#    loop = asyncio.get_event_loop()
+#    task = loop.create_task(main())
+#    loop.run_until_complete(task)
+
+
+
+# save
+# future_result = script.run("/bin/sh", "-c", "/bin/echo [$(lscpu -J | jq -c),$(lscpu -JC | jq -c)] | sed s/\"field\"/\"k\"/g | sed s/\"data\"/\"v\"/g")
+# cat /proc/cpuinfo |grep "model name" |head -n1 | sed  -rn 's/^[^:]+:[[:space:]]([^[$]+)$/\1/p'

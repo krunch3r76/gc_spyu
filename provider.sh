@@ -1,31 +1,49 @@
 #!/bin/sh
 
-PROVIDERNAME=$1
-PROVIDERID=$2
+PROVIDERNAME=${1:-'{PROVIDERNAME}'}
+PROVIDERID=${2:-'{PROVIDERID}'}
+UNIXTIME=$3
 WORKDIR=/golem/work
 OUTPUTDIR=/golem/output
 
 # POST
 # /golem/work
 #	/model			: model name
-# 	/topology.xml		: modified topology.xml with hostname as $PROVIDERNAME@PROVIDERID
+# 	/topology_host.xml	: modified topology.xml with hostname as $PROVIDERNAME@PROVIDERID
+#	/topology.xml		: original topology
+#	/topology.svg		: svg from modified topology.xml
+#	/topology.asc		: asc from ...
 # /golem/output
-#	/topology.xml	: original topology with modified legend
-#	/topology.svg	: svg from modified topology.xml
 
 # /golem/work/model
 /bin/cat /proc/cpuinfo |grep 'model name' | head -n1 | sed  -rn 's/^[^:]+:[[:space:]]([^[$]+)$/\1/p' >$WORKDIR/model
 
 # /golem/output/topology.xml
 /usr/bin/lstopo --output-format xml \
-		--append-legend "$(cat $WORKDIR/model)" \
-		$OUTPUTDIR/topology.xml
+		$WORKDIR/topology.xml
 
 # /golem/work/topology.xml
 SEDX='s/(<info name="HostName" value=")([^\"]*+)("\/>)/\1'
 SEDX="${SEDX}${PROVIDERNAME}@${PROVIDERID}\3/"
-/bin/sh -c "sed -E '$SEDX' $OUTPUTDIR/topology.xml >$WORKDIR/topology.xml"
+/bin/sh -c "sed -E '$SEDX' $WORKDIR/topology.xml >$WORKDIR/topology_host.xml"
+# STATE: HostName field replaced with provider@address in work xml file
 
 # /golem/output/topology.svg
-lstopo -i $WORKDIR/topology.xml --of svg $OUTPUTDIR/topology.svg
+lstopo -i $WORKDIR/topology_host.xml --of svg \
+	--append-legend "$(cat $WORKDIR/model)" \
+ 	$WORKDIR/topology.svg
+
+lstopo -i $WORKDIR/topology_host.xml --of ascii \
+	--append-legend "$(cat $WORKDIR/model)" $WORKDIR/topology.asc
+
+jq --null-input \
+	--arg unixtime "$UNIXTIME" \
+	--arg name "$PROVIDERNAME" \
+	--arg addr "$PROVIDERID" \
+	--arg model "$(cat $WORKDIR/model)" \
+	--arg svg "$(cat $WORKDIR/topology.svg)" \
+	--arg asc "$(cat $WORKDIR/topology.asc)" \
+	--arg xml "$(cat $WORKDIR/topology.xml)" \
+	'{"unixtime": $unixtime, "name": $name, "addr", $addr, "model": $model, "svg": $svg, "asc": $asc, "xml": $xml}' \
+	>$OUTPUTDIR/topology.json
 
