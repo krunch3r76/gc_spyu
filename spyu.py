@@ -75,14 +75,12 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
             }
             debug.dlog(f"agreement created with agr_id: {event.agr_id} with provider named: {event.provider_info.name}")
         elif isinstance(event, yapapi.events.TaskAccepted):
-            debug.dlog(event)
             agr_id = event.result['agr_id']
-            debug.dlog(f"--------blacklisting {self.id_to_info[agr_id]['name']} because of task accepted")
+            debug.dlog(f"{event}\n--------blacklisting {self.id_to_info[agr_id]['name']} because of task accepted")
             self._blacklist.add(self.id_to_info[agr_id]['address'])
         elif isinstance(event, yapapi.events.WorkerFinished):
-            debug.dlog(event)
             if event.exc_info != None and len(event.exc_info) > 0:
-                debug.dlog(f"Worker associated with agreement id {event.agr_id} finished but threw the exception {event.exc_info[1]}"
+                debug.dlog(f"{event}\nWorker associated with agreement id {event.agr_id} finished but threw the exception {event.exc_info[1]}"
                        "\nWorker name is {self.id_to_info['event.agr_id']}" )
         elif isinstance(event, yapapi.events.ActivityCreateFailed):
             if len(event.exc_info) > 0:
@@ -97,6 +95,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
 
 
 async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
+    """run topology gathering script, d/l, and store provider ids and filepath to d/l in result"""
     """
     context.id -> activity id; same as ActivityCreated :event.act_id (stored 
     context.provider_name -> name of provider
@@ -110,17 +109,18 @@ async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
 
         script = context.new_script(timeout=timedelta(minutes=2))
         script.run("/root/provider.sh", context.provider_name, context.provider_id, str(datetime.now().timestamp()))
-        target=f"{task.data['results-dir']}/{context.provider_id}"
-        script.download_file(f"/golem/output/topology.json", str(target+".json"))
+        target=f"{task.data['results-dir']}/{context.provider_id}.json"
+        script.download_file(f"/golem/output/topology.json", target)
         try:
             yield script
         except:
             raise
         else:
             # place result along with meta into a dict
-            result_dict= { 'agr_id': agr_id
+            result_dict= { 'provider_name': context.provider_name
                     , 'graphical_output_file': target
                     , 'provider_id': context.provider_id
+                    , 'agr_id': agr_id # may be used to lookup additional info in MySummaryLogger
             }
             task.accept_result(result_dict)
 
@@ -132,38 +132,11 @@ async def worker(context: WorkContext, tasks: AsyncIterable[Task]):
 
 
 async def on_executed_task(completed):
-    info = mySummaryLogger.id_to_info[completed.result.agr_id]
-
-    objects_j=json.loads(completed.result.stdout)
-    nt_raw_parse = marshal_result(objects_j)
-    lscpu = {
-            'essentials': nt_raw_parse.essentials
-            ,'caches': nt_raw_parse.caches
-            ,'vulnerabilities': nt_raw_parse.vulnerabilities
-            }
-    result_summary = dict()
-    result_summary['provider_id']=info['address']
-    result_summary['provider_name']=info['name']
-    result_summary['timestamp']=info['timestamp']
-    result_summary['info']=lscpu
-
-
-    # print(f"------\n{result_j}\n------")
-
-    filename=f"{result_summary['provider_id'][:6]}_{result_summary['provider_name']}.json"
-    print("------------------------------------------------------")
-    path_to_file=(pathlib.Path("./tmp")/filename).resolve()
-    print("++++++++++++++++++++++++++++++++++++++")
-    print(f"!!!!!!!!!!!! ${path_to_file} !!!!!!")
-    with open(str(path_to_file), "w") as f:
-        # with open(f'output{next(counter)}.txt', "w") as f:
-        # f.write(completed.result.stdout)
-        f.write(json.dumps(result_summary, indent=4))
-
-    print(f"RESULT SUMMARY**********\n{json.dumps(result_summary, indent=1)}")
-            # print(completed.result.stdout)
-
-
+    """handler for each task a worker executes"""
+    """
+    
+    """
+    debug.dlog(f"golem.execute_tasks has returned a Task object with result: {completed.result}")
 
 async def main():
     glmSpent=Decimal(0.0)
@@ -213,9 +186,9 @@ async def main():
                     , max_workers=1
                     , timeout=timeout
                     ):
-                # print(completed.result['stdout'])
-                # await on_executed_task(completed)
+                await on_executed_task(completed)
                 timestart=datetime.now()
+    print(f"Stopping because no results after {datetime.now() - timestamp}")
 
 
 

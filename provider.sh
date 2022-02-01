@@ -1,4 +1,5 @@
 #!/bin/sh
+# authored by krunch3r76 (https://www.github.com/krunch3r76)
 
 PROVIDERNAME=${1:-"\{PROVIDERNAME\}"}
 PROVIDERID=${2:-"\{PROVIDERID\}"}
