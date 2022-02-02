@@ -1,3 +1,6 @@
+# filterms modified from gc_filterms for spyu
+# authored by krunch3r76 (https://github.com/krunch3r76)
+
 import yapapi
 import os, sys # debug sys
 from yapapi import rest
@@ -80,7 +83,7 @@ class FilterProviderMS(MarketStrategy):
         score = None
         name = offer.props["golem.node.id.name"]
         if offer.issuer in self._blacklist:
-            print(f"REJECTED {name} at {offer.issuer} BECAUSE HOT BLACKLISTED!")
+            # print(f"REJECTED {name} at {offer.issuer} BECAUSE HOT BLACKLISTED!")
             return SCORE_REJECTED
 
         try: 

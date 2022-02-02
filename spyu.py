@@ -24,55 +24,48 @@ import io
 import argparse
 import sqlite3
 import tempfile
+import pathlib
 
 from mysummarylogger import MySummaryLogger
+from model.create_db import create_db
 
-"""create_db
-inputs                          process                     output
- dbpath                         setup adapters              conn
- isolation                      register adapters
-                                connect
-"""
-def create_db(dbpath, isolation_level=None):
-    """setup adapters"""
-    def adapt_decimal(d):
-        return str(d)
 
-    def convert_decimal(s):
-        return Decimal(s.decode('utf-8'))
-
-    """register"""
-    sqlite3.register_adapter(Decimal, adapt_decimal)
-    sqlite3.register_converter("DECIMAL", convert_decimal)
-
-    """connect"""
-    con = sqlite3.connect(dbpath, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES, isolation_level=isolation_level)
-
-    """output"""
-    return con
+g_source_dir=pathlib.Path(__file__).resolve().parent
 
 
 
 
+class MyModel():
+    def __init__(self, dbpath=g_source_dir/"model/topology.db"):
+        self.con = create_db(dbpath)
 
 
-
-
-
-
-async def on_accepted_result(result):
-    """handler for each task a worker executes"""
+def on_accepted_result(myModel :MyModel):
+    """closure handler for each task a worker executes"""
     # called by provision_to_golem
-    debug.dlog(f"golem.execute_tasks has returned a Task object with result: {result}")
+    async def closure(result):
+        # result := { provider_name: , json_file: , provider_id: , agr_id: }
+        debug.dlog(f"golem.execute_tasks has returned a Task object with result: {result}")
+        with open(result['json_file'], "r") as json_fp:
+            loadedTopology = json.load(json_fp)
+        con = myModel.con
+        con.execute("INSERT INTO 'topology'(svg, asc, xml, provider_id, modelname, unixtime)"
+                " VALUES(?, ?, ?, ?, ?, ?)"
+                , (loadedTopology['svg'], loadedTopology['asc'], loadedTopology['xml'], loadedTopology['name']
+                , loadedTopology['model'], loadedTopology['unixtime'])
+                )
+    return closure
+
 
 
 
 
 
 class Provisioner():
-    def __init__(self, budgetPerTask, golem_timeout, subnet_tag, payment_driver, payment_network, event_consumer, strategy, package, result_callback):
+    """setup context and interface for launching a Golem instance"""
+    def __init__(self, budgetPerTask, subnet_tag, payment_driver, payment_network, event_consumer, strategy, package, result_callback, golem_timeout=timedelta(minutes=6)):
         self._budgetPerTask         =budgetPerTask
-        self._golem_timeout         =golem_timeout # the timeout for the golem instance | >= script timeout
+        self.__golem_timeout        =golem_timeout # the timeout for the golem instance | >= script timeout
         self._subnet_tag            =subnet_tag
         self._payment_driver        =payment_driver
         self._payment_network       =payment_network
@@ -83,6 +76,7 @@ class Provisioner():
         self._package               =package
         self._result_callback       =result_callback
         self.__env_printed          =False
+        self.__timeStartLast        =None
         # comment: golem_timeout set too low (e.g. < 10 minutes) might result in no offers being collected
 
 
@@ -107,12 +101,15 @@ class Provisioner():
             script.download_file(f"/golem/output/topology.json", target)
             try:
                 yield script
+            except asyncio.CancelledError:
+                debug.dlog(f"****************************CancelledError inside worker**************************")
+                raise
             except:
                 raise
             else:
                 # place result along with meta into a dict
                 result_dict= { 'provider_name': context.provider_name
-                        , 'graphical_output_file': target
+                        , 'json_file': target
                         , 'provider_id': context.provider_id
                         , 'agr_id': agr_id # may be used to lookup additional info in MySummaryLogger
                 }
@@ -123,8 +120,9 @@ class Provisioner():
 
 
 
-    async def __call__(self, time_last_run):
+    async def __call__(self):
         """ enter market """
+        self.__timeStartLast = datetime.now() # probably don't need this as an attribute
         async with Golem(
                 budget=self._budgetPerTask
                 , subnet_tag=self._subnet_tag
@@ -135,38 +133,32 @@ class Provisioner():
                 , stream_output=False
                 ) as golem:
 
+
             """ output parameters """
             if self.__env_printed==False:
                 utils.print_env_info(golem)
                 self.__env_printed=True
 
             """ send task """
-            async for completed in golem.execute_tasks(
+            async for completed_task in golem.execute_tasks(
                     self._worker
                     , [Task(data={"results-dir": self._workdir})]
                     , payload=self._package
                     , max_workers=1
-                    , timeout=self._golem_timeout
+                    , timeout=self.__golem_timeout # arbitrary if self._wait_for_provider_timeout less
                     ):
 
-                """ handle result """
-                await self._result_callback(completed.result)
-
-                """ reset start time """
-                time_last_run=datetime.now()
-
-        """ output """
-        return time_last_run
+                    await self._result_callback(completed_task.result)
+        if datetime.now() - self.__timeStartLast > ( self.__golem_timeout - timedelta(minutes=1) ):
+            return True
+        else:
+            return False
 
 
 
 
 
-
-
-
-
-async def spyu(CPUmax=Decimal("0.5"), ENVmax=Decimal("0.18"), maxGlm=Decimal("1.0"), STARTmax=Decimal("0.0")):
+async def spyu(myModel, CPUmax=Decimal("0.5"), ENVmax=Decimal("0.18"), maxGlm=Decimal("1.0"), STARTmax=Decimal("0.0")):
     glmSpent=Decimal(0.0)
 
     """ create blacklist """
@@ -203,26 +195,23 @@ async def spyu(CPUmax=Decimal("0.5"), ENVmax=Decimal("0.18"), maxGlm=Decimal("1.
     mySummaryLogger=MySummaryLogger(blacklist)
 
 
-    """ timestamp """
-    time_last_run=datetime.now()
-    new_work_timeout=timedelta(minutes=1)
-
     """ setup provisioner """
-    provisioner = Provisioner(budgetPerTask=Decimal("0.001"), golem_timeout=timedelta(minutes=10), subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result)
+    provisioner = Provisioner(budgetPerTask=Decimal("0.001"), subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(myModel))
 
-    while datetime.now() - time_last_run < new_work_timeout:
-        """ call provisioner """
-        time_last_run = await provisioner(time_last_run)
+    cancelled=False
+    while not cancelled:
+        cancelled = await provisioner()
 
-    print(f"Stopping because no results seen for duration of {datetime.now() - time_last_run}")
-
+    print("Total glm spent:", mySummaryLogger.sum_invoices())
 
 
 
 
 if __name__ == "__main__":
     debug.dlog("starting")
-    utils.run_golem_example(spyu())
+    debug.dlog("creating database")
+    myModel =MyModel()
+    utils.run_golem_example(spyu(myModel))
 
 
 # save
