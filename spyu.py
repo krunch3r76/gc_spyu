@@ -39,21 +39,42 @@ class MyModel():
     def __init__(self, dbpath=g_source_dir/"model/topology.db"):
         self.con = create_db(dbpath)
 
+    def execute(self, *args):
+        recordset = None
+        recordset = self.con.execute(*args)
+        return recordset
+
+    def execute_and_id(self, *args):
+        recordset = None
+        cur = self.con.cursor()
+        recordset = cur.execute(*args)
+        lastrowid = cur.lastrowid
+        rv = (lastrowid, recordset,)
+        return rv
 
 def on_accepted_result(myModel :MyModel):
     """closure handler for each task a worker executes"""
     # called by provision_to_golem
     async def closure(result):
         # result := { provider_name: , json_file: , provider_id: , agr_id: }
+        """ loadedTopology := { unixtime: , name: , addr: , model: , svg: , asc:, xml: }"""
         debug.dlog(f"golem.execute_tasks has returned a Task object with result: {result}")
         with open(result['json_file'], "r") as json_fp:
             loadedTopology = json.load(json_fp)
-        con = myModel.con
-        con.execute("INSERT INTO 'topology'(svg, asc, xml, provider_id, modelname, unixtime)"
+        providerId = myModel.execute_and_id("INSERT INTO 'provider_id'(addr) VALUES (?)", [ loadedTopology['addr'] ] )[0]
+        myModel.execute("INSERT INTO 'topology'(svg, asc, xml, providerId, modelname, unixtime)"
+                " VALUES(?, ?, ?, ?, ?, ?)"
+                , [loadedTopology['svg'], loadedTopology['asc'], loadedTopology['xml'], loadedTopology['name']
+                , loadedTopology['model'], loadedTopology['unixtime']]
+                )
+
+        """
+        cur.execute("INSERT INTO 'topology'(svg, asc, xml, providerId, modelname, unixtime)"
                 " VALUES(?, ?, ?, ?, ?, ?)"
                 , (loadedTopology['svg'], loadedTopology['asc'], loadedTopology['xml'], loadedTopology['name']
                 , loadedTopology['model'], loadedTopology['unixtime'])
                 )
+        """
     return closure
 
 
@@ -164,6 +185,9 @@ async def spyu(myModel, CPUmax=Decimal("0.5"), ENVmax=Decimal("0.18"), maxGlm=De
     """ create blacklist """
     blacklist=set()
 
+
+    # TODO update blacklist with node addresses according to rules such as time since last
+
     """ parse CLI """
     parser = utils.build_parser("spyu : a provider cpu topology inspector")
     # parser.add_argument("--results-dir", help="where to store downloaded task results", default="/tmp/spyu_workdir")
@@ -210,7 +234,7 @@ async def spyu(myModel, CPUmax=Decimal("0.5"), ENVmax=Decimal("0.18"), maxGlm=De
 if __name__ == "__main__":
     debug.dlog("starting")
     debug.dlog("creating database")
-    myModel =MyModel()
+    myModel =MyModel(g_source_dir/"model/topology.db")
     utils.run_golem_example(spyu(myModel))
 
 
