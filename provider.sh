@@ -1,5 +1,5 @@
 #!/bin/sh
-# authored by krunch3r76 (https://www.github.com/krunch3r76)
+# authored by krunch3r (https://www.github.com/krunch3r76)
 # license GPL 3.0
 PROVIDERNAME=${1:-"\{PROVIDERNAME\}"}
 PROVIDERID=${2:-"\{PROVIDERID\}"}
