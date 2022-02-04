@@ -34,12 +34,13 @@ https://user-images.githubusercontent.com/46289600/152594180-054dad3a-4c53-4103-
 ## to inspect collossus, odra, and whirlwind on testnet, subnet public-beta
 ```bash
 (myvenv)$ ./spyu.py --disable-logging --subnet-tag public-beta --spy collossus odra whirlwind
+
 ```
 # CREDITS
 The topology information is taken by running the latest version of openmpi's hwloc. For more information on hwloc, visit: https://www.open-mpi.org/projects/hwloc/. As more CPUs etc topologies emerge, the app is able to update to the latest version by rebuilding the gvmi image from the included Dockerfile. For more on how to rebuild a Golem image, visit https://www.golem.network
 
-The Golem process is run using much of Golem's utils.py from yapapi examples. To see the original code, browse: https://github.com/golemfactory/yapapi/blob/master/examples/utils.py
+utils.py from yapapi examples was utilized to start the Golem process and help manage exceptions. To see the original code, browse: https://github.com/golemfactory/yapapi/blob/master/examples/utils.py
 
 # MORE
-Stay tuned, more to come including graphical topologies (not ascii) and gc_listoffers interop.
+Stay tuned, more to come including graphical topologies (not ascii) and gc_listoffers interop (some interop already implemented).
 
