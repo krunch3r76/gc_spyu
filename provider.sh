@@ -16,27 +16,41 @@ OUTPUTDIR=/golem/output
 #	/topology.asc		: asc from ...
 # /golem/output
 
+## grep the model information ##
+################################
 # /golem/work/model
 /bin/cat /proc/cpuinfo |grep 'model name' | head -n1 | sed  -rn 's/^[^:]+:[[:space:]]([^[$]+)$/\1/p' >$WORKDIR/model
 
-# /golem/output/topology.xml
+
+## get different formatted outputs from lstop { xml, svg, ascii } ##
+####################################################################
+
+# ->/golem/work/topology.xml
 /usr/bin/lstopo --output-format xml \
 		$WORKDIR/topology.xml
 
-# /golem/work/topology.xml
+# ->/golem/work/topology_host.xml
 SEDX='s/(<info name="HostName" value=")([^\"]*+)("\/>)/\1'
 SEDX="${SEDX}${PROVIDERNAME}@${PROVIDERID}\3/"
 /bin/sh -c "sed -E '$SEDX' $WORKDIR/topology.xml >$WORKDIR/topology_host.xml"
-# STATE: HostName field replaced with provider@address in work xml file
+# NEW STATE: HostName field has been replaced with provider@address in work xml file
 
-# /golem/output/topology.svg
+# ->/golem/work/topology.svg
 lstopo -i $WORKDIR/topology_host.xml --of svg \
 	--append-legend "$(cat $WORKDIR/model)" \
  	$WORKDIR/topology.svg
 
+# ->/golem/work/topology.asc
 lstopo -i $WORKDIR/topology_host.xml --of ascii \
 	--append-legend "$(cat $WORKDIR/model)" $WORKDIR/topology.asc
+## end get different formatted outputs from lstopo
 
+
+## pack outputs into a json ##
+
+##############################
+
+# ->/golem/output/topology.json
 jq -R -s <$WORKDIR/topology.svg >$WORKDIR/topology_svg.jstr
 jq --null-input \
 	--arg unixtime "$UNIXTIME" \
@@ -48,4 +62,4 @@ jq --null-input \
 	--arg xml "$(cat $WORKDIR/topology.xml)" \
 	'{"unixtime": $unixtime, "name": $name, "addr", $addr, "model": $model, "svg": $svg[0], "asc": $asc, "xml": $xml}' \
 	>$OUTPUTDIR/topology.json
-
+## end pack outputs into a json
