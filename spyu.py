@@ -26,7 +26,6 @@ import yapapi
 import yapapi.log
 
 from filterms import FilterProviderMS, get_gnprovider_as_list
-from marshal_result import marshal_result
 import utils
 from mysummarylogger import MySummaryLogger
 from model.create_db import create_db
