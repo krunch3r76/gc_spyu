@@ -5,6 +5,8 @@ CPU topology is becoming increasingly important in programming to leverage CPUs 
 
 For information on the global supercomputer that is Golem and how to run apps on it, visit https://www.golem.network
 
+For a listing of providers to inspect, visit https://stats.golem.network or run my gc__listoffers (https://github.com/krunch3r76/gc__listoffers)
+
 # installation
 ```bash
 $ git clone https://github.com/krunch3r76/gc_spyu.git
