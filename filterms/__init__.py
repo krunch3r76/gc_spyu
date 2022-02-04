@@ -8,6 +8,7 @@ from typing import Optional
 from yapapi.strategy import SCORE_REJECTED, SCORE_NEUTRAL, SCORE_TRUSTED, ComputationHistory, MarketStrategy
 import json
 from luserset import luserset
+import debug
 
 def _convert_string_array_to_list(stringarray):
     """inputs 1) a stringarray bounded by [ ] with unquoted list elements and converts to a list of strings
@@ -84,7 +85,7 @@ class FilterProviderMS(MarketStrategy):
         self._blacklist = blacklist
         if not self._motd:
             if not self._VERBOSE:
-                print(f"[filterms] TO SEE ALL REJECTIONS SET THE ENVIRONMENT VARIABLE FILTERMSVERBOSE TO 1", file=sys.stderr)
+                debug.dlog(f"[filterms] TO SEE ALL REJECTIONS SET THE ENVIRONMENT VARIABLE FILTERMSVERBOSE TO 1")
             self._motd=True
 
     async def score_offer(
@@ -130,7 +131,7 @@ class FilterProviderMS(MarketStrategy):
                     score = SCORE_REJECTED
 
                 if score != SCORE_REJECTED and score != None:
-                    print(f'[filterms] ACCEPTED offer from {name} {offer.issuer} id: {offer.id} scored at: {score}', file=sys.stderr, flush=True)
+                    debug.dlog(f'[filterms] ACCEPTED offer from {name} {offer.issuer} id: {offer.id} scored at: {score}')
                     if VERBOSE:
                         print(f'\n{offer.props}\n')
                 else:
@@ -146,7 +147,7 @@ class FilterProviderMS(MarketStrategy):
             print(e, file=sys.stderr)
 
         if score == SCORE_REJECTED:
-            print(f'[filterms] rejected {name} scored at {score}')
+            debug.dlog(f'[filterms] rejected {name} scored at {score}')
         return score
 
     async def decorate_demand(self, demand):

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# authored by krunch3r (https://www.github.com/krunch3r76)
+# license GPL 3.0
 import asyncio
 from typing import AsyncIterable
 from itertools import count
@@ -29,6 +31,7 @@ import utils
 from mysummarylogger import MySummaryLogger
 from model.create_db import create_db
 from luserset import luserset
+from on_run_conclusion import on_run_conclusion
 
 g_source_dir=pathlib.Path(__file__).resolve().parent
 
@@ -90,13 +93,13 @@ def on_accepted_result(myModel :MyModel):
         providerId = myModel.insert_and_id("INSERT OR IGNORE INTO 'provider'(addr) VALUES (?)", [ loadedTopology['addr'] ] )
         topologyId = myModel.insert_and_id("INSERT INTO 'topology'(svg, asc, xml, providerId, modelname, unixtime)"
                 " VALUES(?, ?, ?, ?, ?, ?)"
-                , [ loadedTopology['svg'], loadedTopology['asc'], loadedTopology['xml'], loadedTopology['name']
+                , [ loadedTopology['svg'], loadedTopology['asc'], loadedTopology['xml'], providerId
                 , loadedTopology['model'], loadedTopology['unixtime'] ]
                 )
 
         myModel.insert_and_id("INSERT INTO 'agreement'(topologyId, id) VALUES (?, ?)", [ topologyId, result['agr_id']])
         myModel.execute("INSERT INTO 'offer'(topologyId, data) VALUES (?, ?)", [ topologyId, json.dumps(result['offer']) ] )
-
+        return [ topologyId ]
     return closure
 
 
@@ -144,6 +147,7 @@ class Provisioner():
         self._result_callback       =result_callback
         self.__env_printed          =False
         self.__timeStartLast        =None
+        self.topologyIds           =[] # topologies downloaded
         # comment: golem_timeout set too low (e.g. < 10 minutes) might result in no offers being collected
 
 
@@ -242,7 +246,7 @@ class Provisioner():
                     result = completed_task.result
                     """ keys->'provider_name', 'json_file', 'provider_id', 'agr_id', 'offer' """
                     agr_id = result['agr_id']
-                    await self._result_callback(result)
+                    self.topologyIds.extend(await self._result_callback(result))
 
 
 
@@ -271,9 +275,15 @@ class Provisioner():
 async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37"), perRunBudget=Decimal("0.1"), whitelist=None):
     """ add to parser and parse CLI """
     parser = utils.build_parser("spyu : a provider cpu topology inspector")
+    parser.add_argument("--disable-logging", action="store_true", help="disable yapapi logging")
     # parser.add_argument("--results-dir", help="where to store downloaded task results", default="/tmp/spyu_workdir")
     # parser.add_argument("--max-budget", help="maximum total budget", default=Decimal(1))
     args=parser.parse_args()
+
+    if args.spy == None:
+        print("Usage: spyu --spy <space delimited list of node names>")
+        print("Example: spyu --spy q53 sycamore")
+        sys.exit(1)
 
     """ init """
     glmSpent=Decimal(0.0)
@@ -285,20 +295,18 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
                 input("WARNING, commas seen in node names passed as arguments to --spy. If this was not intentional please quit otherwise press enter to proceed")
                 break
         whitelist=set(args.spy)
-        print(args.spy)
-        print(type(args.spy))
         os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
         
-        print(f"---++++ os.environ['GNPROVIDER'] is {os.environ['GNPROVIDER']}")
+        debug.dlog(f"---++++ os.environ['GNPROVIDER'] is {os.environ['GNPROVIDER']}")
     whitelist = set(get_gnprovider_as_list())
-    print(f"whitelist set to {whitelist}")
 
     """ create blacklist """
     blacklist=luserset()
     # TODO populate blacklist with node addresses according to rules such as < time since last
 
     """ enable logging """
-    enable_default_logger(log_file=args.log_file)
+    if not args.disable_logging:
+        enable_default_logger(log_file=args.log_file)
 
     """ setup package """
     package = await vm.repo(
@@ -323,14 +331,17 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
     """ setup provisioner """
     provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(myModel))
 
+    print(f"waiting on {str(whitelist)}")
     cancelled=False
     while not cancelled and len(whitelist) > 0:
         cancelled = await provisioner()
         whitelist = blacklist.difference(whitelist)
+        print(f"still waiting on {str(whitelist)}")
+        # print(f"topology ids: {provisioner.topologyIds}")
 
     print("Total glm spent:", mySummaryLogger.sum_invoices())
 
-
+    on_run_conclusion(provisioner.topologyIds, myModel)
 
 
 
