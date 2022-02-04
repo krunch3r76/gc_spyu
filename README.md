@@ -16,7 +16,18 @@ https://user-images.githubusercontent.com/46289600/152594180-054dad3a-4c53-4103-
 
 
 # USAGE
-(myvenv)$ ./spyu --spy etam q53
 
+## invocation
+```bash
+(myvenv)$ ./spyu.py --spy <space delimited list of nodes>
+```  
+## to inspect etam and q53 on testnet, subnet devnet-beta
+```bash
+(myvenv)$ ./spyu.py --disable-logging --spy etam q53
+```
+## to inspect collossus, odra, and whirlwind on testnet, subnet public-beta
+```bash
+(myvenv)$ ./spyu.py --disable-logging --subnet-tag public-beta --spy collossus odra whirlwind
+```
 
-
+Stay tuned, more to come including graphical topologies (not ascii) and gc_listoffers interop.
