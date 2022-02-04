@@ -47,7 +47,6 @@ lstopo -i $WORKDIR/topology_host.xml --of ascii \
 
 
 ## pack outputs into a json ##
-
 ##############################
 
 # ->/golem/output/topology.json
