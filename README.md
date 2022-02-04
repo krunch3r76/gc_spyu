@@ -42,5 +42,5 @@ The topology information is taken by running the latest version of openmpi's hwl
 utils.py from yapapi examples was utilized to start the Golem process and help manage exceptions. To see the original code, browse: https://github.com/golemfactory/yapapi/blob/master/examples/utils.py
 
 # MORE
-Stay tuned, more to come including graphical topologies (not ascii) and gc_listoffers interop (some interop already implemented).
+Stay tuned, more to come including graphical topologies (not ascii), historical lookups, and gc_listoffers interop (some interop already implemented).
 
