@@ -129,6 +129,8 @@ class FilterProviderMS(MarketStrategy):
             print("[filterms] AN UNHANDLED EXCEPTION OCCURRED", file=sys.stderr)
             print(e, file=sys.stderr)
 
+        if score == SCORE_REJECTED:
+            print(f'[filterms] rejected {name} scored at {score}')
         return score
 
     async def decorate_demand(self, demand):
