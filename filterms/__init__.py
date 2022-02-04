@@ -7,7 +7,7 @@ from yapapi import rest
 from typing import Optional
 from yapapi.strategy import SCORE_REJECTED, SCORE_NEUTRAL, SCORE_TRUSTED, ComputationHistory, MarketStrategy
 import json
-
+from luserset import luserset
 
 def _convert_string_array_to_list(stringarray):
     """inputs 1) a stringarray bounded by [ ] with unquoted list elements and converts to a list of strings
@@ -58,6 +58,21 @@ def _partial_match_in(cf, node_addresses):
 
 
 
+def get_gnprovider_as_list():
+    """ read the GNPROVIDER environment variable into a list and return """
+    """ OUT: list of zero or more elements """
+    varEnv = os.environ.get('GNPROVIDER')
+    provider_names=_convert_string_array_to_list(varEnv )
+    return provider_names
+
+def get_gnproviderbl_as_list():
+    """ read the GNPROVIDER_BL environment variable into a list and return """
+    """ OUT: list of zero or more elements """
+    varEnv = os.environ.get('GNPROVIDER_BL')
+    provider_names_blacklisted=_convert_string_array_to_list(varEnv)
+    return provider_names_blacklisted
+
+
 class FilterProviderMS(MarketStrategy):
     def __init__(self, blacklist, wrapped=None, ansi=True):
         # make sure wrapped is a descendant of marketstrategy TODO
@@ -85,7 +100,8 @@ class FilterProviderMS(MarketStrategy):
         if offer.issuer in self._blacklist:
             # print(f"REJECTED {name} at {offer.issuer} BECAUSE HOT BLACKLISTED!")
             return SCORE_REJECTED
-
+        elif self._blacklist.check_for_name(name):
+            return SCORE_REJECTED
         try: 
             provider_names=_convert_string_array_to_list( os.environ.get('GNPROVIDER') )
             provider_names_bl=_convert_string_array_to_list( os.environ.get('GNPROVIDER_BL') )

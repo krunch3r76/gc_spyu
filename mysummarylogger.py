@@ -19,6 +19,11 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         debug.dlog("creating summarylogger.log file", 10)
         self._internal_log = open("summarylogger.log", "w", buffering=1)
 
+    def _blacklist_provider(self, address, name):
+        self._blacklist.add(address)
+        self._blacklist.associate_name(address, name)
+
+
     def _addInvoice(self, agr_id: str, total: Decimal):
         if agr_id in self._invoicesReceived:
             raise Exception("saw second invoice for agreement")
@@ -48,8 +53,11 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         # [ TaskAccepted ]
         elif isinstance(event, yapapi.events.TaskAccepted):
             agr_id = event.result['agr_id']
-            debug.dlog(f"{event}\n--------blacklisting {self.id_to_info[agr_id]['name']} because of task accepted")
-            self._blacklist.add(self.id_to_info[agr_id]['address'])
+            address = self.id_to_info[agr_id]['address']
+            name = self.id_to_info[agr_id]['name']
+
+            debug.dlog(f"{event}\n--------blacklisting {name}@{address} because of task accepted")
+            self._blacklist_provider(address, name)
         # [ WorkerFinished ]
         elif isinstance(event, yapapi.events.WorkerFinished):
             if event.exc_info != None and len(event.exc_info) > 0:

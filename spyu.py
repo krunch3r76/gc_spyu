@@ -1,24 +1,14 @@
 #!/usr/bin/env python3
 import asyncio
 from typing import AsyncIterable
-
-from yapapi import Golem, Task, WorkContext
-from yapapi.log import enable_default_logger
-from yapapi.payload import vm
 from itertools import count
-from filterms import FilterProviderMS
-import yapapi
-import yapapi.log
 import json
 from decimal import Decimal
 from datetime import datetime, timedelta
 import pprint
 import pathlib
 import debug
-import traceback
-
-from marshal_result import marshal_result
-import utils
+# import traceback
 import sys
 import io
 import argparse
@@ -26,9 +16,18 @@ import sqlite3
 import tempfile
 import pathlib
 
+from yapapi import Golem, Task, WorkContext
+from yapapi.log import enable_default_logger
+from yapapi.payload import vm
+import yapapi
+import yapapi.log
+
+from filterms import FilterProviderMS, get_gnprovider_as_list
+from marshal_result import marshal_result
+import utils
 from mysummarylogger import MySummaryLogger
 from model.create_db import create_db
-
+from luserset import luserset
 
 g_source_dir=pathlib.Path(__file__).resolve().parent
 
@@ -268,20 +267,22 @@ class Provisioner():
 
 
 
-async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37"), perRunBudget=Decimal("0.1")):
-    glmSpent=Decimal(0.0)
-
-    """ create blacklist """
-    blacklist=set()
-
-
-    # TODO update blacklist with node addresses according to rules such as time since last
-
-    """ parse CLI """
+async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37"), perRunBudget=Decimal("0.1"), whitelist=None):
+    """ add to parser and parse CLI """
     parser = utils.build_parser("spyu : a provider cpu topology inspector")
     # parser.add_argument("--results-dir", help="where to store downloaded task results", default="/tmp/spyu_workdir")
     # parser.add_argument("--max-budget", help="maximum total budget", default=Decimal(1))
     args=parser.parse_args()
+
+    """ init """
+    glmSpent=Decimal(0.0)
+
+    """ populate whitelist from environment (filterms) """
+    whitelist = set(get_gnprovider_as_list())
+
+    """ create blacklist """
+    blacklist=luserset()
+    # TODO populate blacklist with node addresses according to rules such as < time since last
 
     """ enable logging """
     enable_default_logger(log_file=args.log_file)
@@ -303,17 +304,16 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
     """ filter strategy """
     filtered_strategy = FilterProviderMS(blacklist, strat)
 
-
     """ setup event consumer """
     mySummaryLogger=MySummaryLogger(blacklist, myModel)
-
 
     """ setup provisioner """
     provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(myModel))
 
     cancelled=False
-    while not cancelled:
+    while not cancelled and len(whitelist) > 0:
         cancelled = await provisioner()
+        whitelist = blacklist.difference(whitelist)
 
     print("Total glm spent:", mySummaryLogger.sum_invoices())
 
