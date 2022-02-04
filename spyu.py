@@ -15,6 +15,7 @@ import argparse
 import sqlite3
 import tempfile
 import pathlib
+import os
 
 from yapapi import Golem, Task, WorkContext
 from yapapi.log import enable_default_logger
@@ -278,7 +279,19 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
     glmSpent=Decimal(0.0)
 
     """ populate whitelist from environment (filterms) """
+    if args.spy != None:
+        for element in args.spy:
+            if ',' in element:
+                input("WARNING, commas seen in node names passed as arguments to --spy. If this was not intentional please quit otherwise press enter to proceed")
+                break
+        whitelist=set(args.spy)
+        print(args.spy)
+        print(type(args.spy))
+        os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
+        
+        print(f"---++++ os.environ['GNPROVIDER'] is {os.environ['GNPROVIDER']}")
     whitelist = set(get_gnprovider_as_list())
+    print(f"whitelist set to {whitelist}")
 
     """ create blacklist """
     blacklist=luserset()

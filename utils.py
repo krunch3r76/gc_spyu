@@ -49,6 +49,8 @@ def build_parser(description: str) -> argparse.ArgumentParser:
         default=str(default_log_path),
         help="Log file for YAPAPI; default: %(default)s",
     )
+    parser.add_argument('--spy', action="extend", nargs="+", type=str, help="space delimited list of node/node names to fetch information about")
+
     return parser
 
 
