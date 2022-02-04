@@ -336,13 +336,16 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
     while not cancelled and len(whitelist) > 0:
         cancelled = await provisioner()
         whitelist = blacklist.difference(whitelist)
-        print(f"still waiting on {str(whitelist)}")
+        if len(whitelist) > 0:
+            print(f"still waiting on {str(whitelist)}")
         # print(f"topology ids: {provisioner.topologyIds}")
 
+    return mySummaryLogger.sum_invoices(), provisioner.topologyIds, myModel
+    """
     print("Total glm spent:", mySummaryLogger.sum_invoices())
 
     on_run_conclusion(provisioner.topologyIds, myModel)
-
+    """
 
 
 
@@ -365,9 +368,14 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
 if __name__ == "__main__":
     debug.dlog("starting")
     myModel =MyModel(g_source_dir/"model/topology.db")
-    utils.run_golem_example(spyu(myModel))
+    sumInvoices, topologyIds, myModel = utils.run_golem_example(spyu(myModel))
 
-
+    print("Total glm spent:", sumInvoices)
+    try:
+        on_run_conclusion(topologyIds, myModel)
+    except KeyboardInterrupt:
+        print("\nas you wish")
+    
 # save
 # future_result = script.run("/bin/sh", "-c", "/bin/echo [$(lscpu -J | jq -c),$(lscpu -JC | jq -c)] | sed s/\"field\"/\"k\"/g | sed s/\"data\"/\"v\"/g")
 # cat /proc/cpuinfo |grep "model name" |head -n1 | sed  -rn 's/^[^:]+:[[:space:]]([^[$]+)$/\1/p'

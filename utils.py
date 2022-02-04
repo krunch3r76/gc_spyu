@@ -115,3 +115,5 @@ def run_golem_example(example_main, log_file=None):
             )
         except (asyncio.CancelledError, KeyboardInterrupt):
             pass
+    else:
+        return task.result()
