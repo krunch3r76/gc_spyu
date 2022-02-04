@@ -3,9 +3,9 @@ a golem node topology inspector
 
 CPU topology is becoming increasingly important in programming to leverage CPUs to maximum efficiency. gc_spyu empowers golem requestors to obtain detailed topology information on any node for mGLM (milli); thereby empowering developers to inspect cache sizes on nodes to enable writing low level code that aligns with the fastest accessible memory banks!
 
-For information on the global supercomputer that is Golem and how to run apps on it, visit https://www.golem.network
+For information on the global supercomputer that is Golem and how to run or engineer apps on it, visit https://www.golem.network
 
-For a listing of providers to inspect, visit https://stats.golem.network or run my gc__listoffers (https://github.com/krunch3r76/gc__listoffers)
+For a listing of providers to inspect, visit https://stats.golem.network or invoke my gc__listoffers (https://github.com/krunch3r76/gc__listoffers)
 
 # installation
 ```bash
@@ -42,5 +42,5 @@ The topology information is taken by running the latest version of openmpi's hwl
 utils.py from yapapi examples was utilized to start the Golem process and help manage exceptions. To see the original code, browse: https://github.com/golemfactory/yapapi/blob/master/examples/utils.py
 
 # MORE
-Stay tuned, more to come including graphical topologies (not ascii) and gc_listoffers interop (some interop already implemented).
+Stay tuned, more to come including graphical topologies (not ascii), historical lookups, and gc_listoffers interop (some interop already implied by filterms).
 
