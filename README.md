@@ -34,7 +34,11 @@ https://user-images.githubusercontent.com/46289600/152594180-054dad3a-4c53-4103-
 ## to inspect collossus, odra, and whirlwind on testnet, subnet public-beta
 ```bash
 (myvenv)$ ./spyu.py --disable-logging --subnet-tag public-beta --spy collossus odra whirlwind
+```
 
+## to use the gc__filterms / gc__listoffers environment setting
+```bash
+(myvenv)$ GNPROVIDER=['0x3dd491','0xcef890','etam'] ./spyu
 ```
 # CREDITS
 The topology information is taken by running the latest version of openmpi's hwloc. For more information on hwloc, visit: https://www.open-mpi.org/projects/hwloc/. As more CPUs etc topologies emerge, the app is able to update to the latest version by rebuilding the gvmi image from the included Dockerfile. For more on how to rebuild a Golem image, visit https://www.golem.network
