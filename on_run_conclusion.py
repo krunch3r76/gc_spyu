@@ -8,9 +8,14 @@ def console_interface(topologyIds, myModel):
         f" FROM (select addr FROM provider NATURAL JOIN topology) AS addr" \
         f" JOIN topology" \
         f" NATURAL JOIN cost" \
-        f" NATURAL JOIN offer" \
-        f" WHERE topologyId IN {tuple(topologyIds)}" \
-        f" GROUP BY topologyId"
+        f" NATURAL JOIN offer" 
+
+    if len(topologyIds) > 1:
+        ss+=f" WHERE topologyId IN {tuple(topologyIds)}"
+    else:
+        ss+=f" WHERE topologyId IN ( {topologyIds[0]} )"
+    ss+=f" GROUP BY topologyId"
+
     debug.dlog(ss)
     recordset = myModel.execute(ss) 
     records=recordset.fetchall()
@@ -21,7 +26,11 @@ def console_interface(topologyIds, myModel):
         print(f" {row[2]}\t{row[3]}")
         print("")
 
-    ss=f"SELECT asc FROM topology WHERE topologyId IN {tuple(topologyIds)}"
+    if len(topologyIds) > 1:
+        ss=f"SELECT asc FROM topology WHERE topologyId IN {tuple(topologyIds)}"
+    else:
+        ss=f"SELECT asc FROM topology WHERE topologyId IN ({topologyIds[0]})"
+
     recordset = myModel.execute(ss)
     records=recordset.fetchall()
     input("Press enter to step thru topologies:")
