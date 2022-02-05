@@ -295,6 +295,9 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
                 break
         whitelist=set(args.spy)
         os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
+    else:
+        print("Using GNPROVIDER filterms environment variable to select nodes")
+        input("press enter to proceed")
 
     debug.dlog(f"---++++ os.environ['GNPROVIDER'] is {os.environ['GNPROVIDER']}")
     whitelist = set(get_gnprovider_as_list())
