@@ -279,7 +279,7 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
     # parser.add_argument("--max-budget", help="maximum total budget", default=Decimal(1))
     args=parser.parse_args()
 
-    if args.spy == None:
+    if args.spy == None and os.environ.get('GNPROVIDER', None) == None:
         print("Usage: spyu --spy <space delimited list of node names>")
         print("Example: spyu --spy q53 sycamore")
         sys.exit(1)
@@ -295,8 +295,8 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
                 break
         whitelist=set(args.spy)
         os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
-        
-        debug.dlog(f"---++++ os.environ['GNPROVIDER'] is {os.environ['GNPROVIDER']}")
+
+    debug.dlog(f"---++++ os.environ['GNPROVIDER'] is {os.environ['GNPROVIDER']}")
     whitelist = set(get_gnprovider_as_list())
 
     """ create blacklist """
