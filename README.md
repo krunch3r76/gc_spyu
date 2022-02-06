@@ -1,7 +1,5 @@
 # gc_spyu
-a golem node topology inspector
-
-This project is in limbo. Topology inspection on Golem currently cannot differentiate between emulated architectures and baremetal. gc_spyu will be reinvented for another purpose besides "topology" inspection and designed to interop with gc__listoffers.
+gc_spyu by default obtains node topologies. However, topologies are inaccurate when providers are running from virtualized environments. It is being revised to download topologies as an option instead of by default.
 
 CPU topology is becoming increasingly important in programming to leverage CPUs to maximum efficiency. gc_spyu empowers golem requestors to obtain detailed topology information on any node for mGLM (milli); thereby empowering developers to inspect cache sizes on nodes to enable writing low level code that aligns with the fastest accessible memory banks!
 
