@@ -1,7 +1,7 @@
 # gc_spyu
 Obtain cpu model information from specific providers and persistently store for later retrieval. Optionally, pry into topology information.
 
-The current Golem network conceals the model information of providers. While obtaining model specifications is possible utilizing the yapapi repository (Golem code), it only randomly selects providers.  gc_spyu solves thie problem of only random specifications by facilitating the procurement of specific provider's model information. Additionally, the platform's reported topology can be downloaded.
+The current Golem network conceals the model information of providers. While obtaining model specifications is possible utilizing the yapapi repository (Golem code), it only randomly selects providers.  gc_spyu solves this problem of only random specifications by facilitating the procurement of specific provider's model information. Additionally, the platform's reported topology can be downloaded.
 
 For information on the global supercomputer that is Golem and how to run or engineer apps on it, visit https://www.golem.network
 
@@ -50,4 +50,7 @@ CPU topology is becoming increasingly important in programming to leverage CPUs 
 
 # MORE
 Stay tuned, more to come including graphical topologies (not ascii), historical lookups, and gc_listoffers interop (some interop already implied by filterms).
+
+# see also
+https://github.com/golemfactory/yapapi/tree/master/examples/scan
 
