@@ -32,36 +32,48 @@ def create_db(dbpath, isolation_level=None):
             ")"
             )
 
-    con.execute("CREATE TABLE IF NOT EXISTS topology("
-            "topologyId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
-            ", providerId REFERENCES provider_id(providerId)"
-            ", svg TEXT DEFAULT ''"
-            ", asc TEXT DEFAULT ''"
-            ", xml TEXT DEFAULT ''"
+    con.execute("CREATE TABLE IF NOT EXISTS nodeInfo("
+            "nodeInfoId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
+            ", providerId REFERENCES provider(providerId)"
             ", modelname TEXT DEFAULT ''"
             ", unixtime DECIMAL NOT NULL"
             ")"
             )
 
+    con.execute("CREATE TABLE IF NOT EXISTS topology("
+            "topologyId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
+            ", nodeInfoId REFERENCES nodeInfo(nodeInfoId)"
+            ", svg TEXT DEFAULT ''"
+            ", asc TEXT DEFAULT ''"
+            ", xml TEXT DEFAULT ''"
+            ")"
+            )
+
     con.execute("CREATE TABLE IF NOT EXISTS offer("
             "offerId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
-            ", topologyId REFERENCES topology(topologyId)"
+            ", nodeInfoId REFERENCES nodeInfo(nodeInfoId)"
             ", data JSON NOT NULL"
             ")"
             )
 
     con.execute("CREATE TABLE IF NOT EXISTS cost("
             "costId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
-            ", topologyId REFERENCES topology(topologyId) NOT NULL"
+            ", nodeInfoId REFERENCES nodeInfo(nodeInfoId) NOT NULL"
             ", total DECIMAL NOT NULL"
             ")"
             )
 
     con.execute("CREATE TABLE IF NOT EXISTS agreement("
             "agreementId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
-            ", topologyId REFERENCES topology(topologyId) NOT NULL"
+            ", nodeInfoId REFERENCES nodeInfo(nodeInfoId) NOT NULL"
             ", id TEXT"
             ")"
             )
+
+    con.execute("CREATE TABLE IF NOT EXISTS scchema_version("
+            "version INT DEFAULT 1"
+            ")"
+    )
+
     """output"""
     return con

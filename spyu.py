@@ -90,15 +90,20 @@ def on_accepted_result(myModel :MyModel):
         with open(result['json_file'], "r") as json_fp:
             loadedTopology = json.load(json_fp)
         providerId = myModel.insert_and_id("INSERT OR IGNORE INTO 'provider'(addr) VALUES (?)", [ loadedTopology['addr'] ] )
-        topologyId = myModel.insert_and_id("INSERT INTO 'topology'(svg, asc, xml, providerId, modelname, unixtime)"
-                " VALUES(?, ?, ?, ?, ?, ?)"
-                , [ loadedTopology['svg'], loadedTopology['asc'], loadedTopology['xml'], providerId
-                , loadedTopology['model'], loadedTopology['unixtime'] ]
+        nodeInfoId = myModel.insert_and_id("INSERT INTO 'nodeInfo'(providerId, modelname, unixtime)"
+                " VALUES(?, ?, ?)"
+                , [ providerId, loadedTopology['model'], loadedTopology['unixtime'] ]
                 )
-
-        myModel.insert_and_id("INSERT INTO 'agreement'(topologyId, id) VALUES (?, ?)", [ topologyId, result['agr_id']])
-        myModel.execute("INSERT INTO 'offer'(topologyId, data) VALUES (?, ?)", [ topologyId, json.dumps(result['offer']) ] )
-        return [ topologyId ]
+        if loadedTopology['xml']!="":
+            topologyId = myModel.insert_and_id("INSERT INTO 'topology'(svg, asc, xml, nodeInfoId)"
+                    " VALUES(?, ?, ?, ?)"
+                    , [ loadedTopology['svg'], loadedTopology['asc'], loadedTopology['xml'], nodeInfoId ]
+                    )
+        else:
+            topologyId = None
+        myModel.insert_and_id("INSERT INTO 'agreement'(nodeInfoId, id) VALUES (?, ?)", [ nodeInfoId, result['agr_id']])
+        myModel.execute("INSERT INTO 'offer'(nodeInfoId, data) VALUES (?, ?)", [ nodeInfoId, json.dumps(result['offer']) ] )
+        return [ nodeInfoId ]
     return closure
 
 
@@ -132,7 +137,7 @@ def on_accepted_result(myModel :MyModel):
 
 class Provisioner():
     """setup context and interface for launching a Golem instance"""
-    def __init__(self, perRunBudget, subnet_tag, payment_driver, payment_network, event_consumer, strategy, package, result_callback, golem_timeout=timedelta(minutes=6)):
+    def __init__(self, perRunBudget, subnet_tag, payment_driver, payment_network, event_consumer, strategy, package, result_callback, golem_timeout=timedelta(minutes=6), add_topology=False):
         self._perRunBudget         =perRunBudget
         self.__golem_timeout        =golem_timeout # the timeout for the golem instance | >= script timeout
         self._subnet_tag            =subnet_tag
@@ -146,7 +151,8 @@ class Provisioner():
         self._result_callback       =result_callback
         self.__env_printed          =False
         self.__timeStartLast        =None
-        self.topologyIds           =[] # topologies downloaded
+        self.nodeInfoIds           =[] # topologies downloaded
+        self.__add_topology          = add_topology
         # comment: golem_timeout set too low (e.g. < 10 minutes) might result in no offers being collected
 
 
@@ -179,7 +185,7 @@ class Provisioner():
                     )
 
             script = context.new_script(timeout=timedelta(minutes=2))
-            script.run("/root/provider.sh", context.provider_name, context.provider_id, str(datetime.now().timestamp()))
+            script.run("/root/provider.sh", context.provider_name, context.provider_id, str(datetime.now().timestamp()), "1" if task.data['add-topology'] else "0")
             target=f"{task.data['results-dir']}/{context.provider_id}.json"
             script.download_file(f"/golem/output/topology.json", target)
             try:
@@ -236,7 +242,7 @@ class Provisioner():
             """ send task """
             async for completed_task in golem.execute_tasks(
                     self._worker
-                    , [Task(data={"results-dir": self._workdir})]
+                    , [Task(data={"results-dir": self._workdir, "add-topology": self.__add_topology})]
                     , payload=self._package
                     , max_workers=1
                     , timeout=self.__golem_timeout # arbitrary if self._wait_for_provider_timeout less
@@ -245,7 +251,7 @@ class Provisioner():
                     result = completed_task.result
                     """ keys->'provider_name', 'json_file', 'provider_id', 'agr_id', 'offer' """
                     agr_id = result['agr_id']
-                    self.topologyIds.extend(await self._result_callback(result))
+                    self.nodeInfoIds.extend(await self._result_callback(result))
 
 
 
@@ -275,6 +281,7 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
     """ add to parser and parse CLI """
     parser = utils.build_parser("spyu : a provider cpu topology inspector")
     parser.add_argument("--disable-logging", action="store_true", help="disable yapapi logging")
+    parser.add_argument("--add-topology", default=False, action="store_true", help="obtain detailed topology information (hwloc)")
     # parser.add_argument("--results-dir", help="where to store downloaded task results", default="/tmp/spyu_workdir")
     # parser.add_argument("--max-budget", help="maximum total budget", default=Decimal(1))
     args=parser.parse_args()
@@ -312,7 +319,7 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
 
     """ setup package """
     package = await vm.repo(
-        image_hash="719736740563a4bb8afd1c8d663655c5984490391909ecaffe1ad603"
+        image_hash="29dea5649cac618ca547486058b3bd9c6d5474e7944605c33a28a4aa"
     )
 
     """ setup strategy """
@@ -331,8 +338,7 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
     mySummaryLogger=MySummaryLogger(blacklist, myModel)
 
     """ setup provisioner """
-    provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(myModel))
-
+    provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(myModel), add_topology=args.add_topology)
     print(f"waiting on {str(whitelist)}")
     cancelled=False
     while not cancelled and len(whitelist) > 0:
@@ -340,13 +346,13 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
         whitelist = blacklist.difference(whitelist)
         if len(whitelist) > 0:
             print(f"still waiting on {str(whitelist)}")
-        # print(f"topology ids: {provisioner.topologyIds}")
+        # print(f"topology ids: {provisioner.nodeInfoIds}")
 
-    return mySummaryLogger.sum_invoices(), provisioner.topologyIds, myModel
+    return mySummaryLogger.sum_invoices(), provisioner.nodeInfoIds, myModel
     """
     print("Total glm spent:", mySummaryLogger.sum_invoices())
 
-    on_run_conclusion(provisioner.topologyIds, myModel)
+    on_run_conclusion(provisioner.nodeInfoIds, myModel)
     """
 
 
@@ -370,11 +376,11 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
 if __name__ == "__main__":
     debug.dlog("starting")
     myModel =MyModel(g_source_dir/"model/topology.db")
-    sumInvoices, topologyIds, myModel = utils.run_golem_example(spyu(myModel))
+    sumInvoices, nodeInfoIds, myModel = utils.run_golem_example(spyu(myModel))
 
     print("Total glm spent:", sumInvoices)
     try:
-        on_run_conclusion(topologyIds, myModel)
+        on_run_conclusion(nodeInfoIds, myModel)
     except KeyboardInterrupt:
         print("\nas you wish")
     

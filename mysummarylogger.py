@@ -77,10 +77,10 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
             self._addInvoice(event.agr_id, amountInvoiceAsDecimal)
             # self._invoicesReceived[event.agr_id]=Decimal(event.amount)
             debug.dlog(f"received invoice for {self._invoicesReceived[event.agr_id]}")
-            records = self._myModel.execute(f"SELECT topologyId FROM agreement WHERE id = '{event.agr_id}'").fetchall()
+            records = self._myModel.execute(f"SELECT nodeInfoId FROM agreement WHERE id = '{event.agr_id}'").fetchall()
             if len(records) > 0:
-                topologyId = records[0][0]
-                self._myModel.execute(f"INSERT INTO 'cost'(topologyId, total) VALUES (?, ?)", [ topologyId, amountInvoiceAsDecimal ])
+                nodeInfoId = records[0][0]
+                self._myModel.execute(f"INSERT INTO 'cost'(nodeInfoId, total) VALUES (?, ?)", [ nodeInfoId, amountInvoiceAsDecimal ])
                 # self._myModel.execute(f"INSERT 
         # [ ExecutionInterrupted ]
         elif isinstance(event, yapapi.events.ExecutionInterrupted):
