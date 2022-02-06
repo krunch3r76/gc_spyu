@@ -377,12 +377,12 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
 if __name__ == "__main__":
     debug.dlog("starting")
 
-    datadir = get_datadir() / "spyu"
+    datadir = get_datadir() / "gc_spyu"
     try:
         datadir.mkdir(parents=True)
     except FileExistsError:
         pass
-    dbfilepath=datadir / "spyu.db"
+    dbfilepath=datadir / "gc_spyu.db"
 
 
     myModel =MyModel(str(dbfilepath))
