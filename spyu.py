@@ -31,6 +31,7 @@ from mysummarylogger import MySummaryLogger
 from model.create_db import create_db
 from luserset import luserset
 from on_run_conclusion import on_run_conclusion
+from get_datadir import get_datadir
 
 g_source_dir=pathlib.Path(__file__).resolve().parent
 
@@ -375,7 +376,16 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
 
 if __name__ == "__main__":
     debug.dlog("starting")
-    myModel =MyModel(g_source_dir/"model/topology.db")
+
+    datadir = get_datadir() / "spyu"
+    try:
+        datadir.mkdir(parents=True)
+    except FileExistsError:
+        pass
+    dbfilepath=datadir / "spyu.db"
+
+
+    myModel =MyModel(str(dbfilepath))
     sumInvoices, nodeInfoIds, myModel = utils.run_golem_example(spyu(myModel))
 
     print("Total glm spent:", sumInvoices)
