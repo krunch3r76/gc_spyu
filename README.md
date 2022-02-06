@@ -1,5 +1,5 @@
 # gc_spyu
-Obtain cpu information from providers and persistently store for later retrieval. Optionally, pry into topology information.
+Obtain cpu information i.e. model information from providers and persistently store for later retrieval. Optionally, pry into topology information.
 
 
 For information on the global supercomputer that is Golem and how to run or engineer apps on it, visit https://www.golem.network
