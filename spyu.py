@@ -143,7 +143,7 @@ class Provisioner():
         self._result_callback       =result_callback
         self.__env_printed          =False
         self.__timeStartLast        =None
-        self.nodeInfoIds           =[] # topologies downloaded
+        self.nodeInfoIds           =[] # inspected
         # comment: golem_timeout set too low (e.g. < 10 minutes) might result in no offers being collected
 
 
@@ -161,7 +161,7 @@ class Provisioner():
 
 
     async def _worker(self, context: WorkContext, tasks: AsyncIterable[Task]):
-        """run topology gathering script, d/l, and store provider ids and filepath to d/l in result"""
+        """run spy script, d/l, and store provider ids and filepath to d/l in result"""
         """
         context.id -> activity id; same as ActivityCreated :event.act_id (stored 
         context.provider_name -> name of provider
@@ -276,9 +276,8 @@ class spyuCTX:
 
     async def __call__(self, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37"), perRunBudget=Decimal("0.1"), whitelist=None):
         """ add to parser and parse CLI """
-        parser = utils.build_parser("spyu : a provider cpu topology inspector")
+        parser = utils.build_parser("spyu : a provider provider cpu inspector")
         parser.add_argument("--disable-logging", action="store_true", help="disable yapapi logging")
-        # parser.add_argument("--results-dir", help="where to store downloaded task results", default="/tmp/spyu_workdir")
         # parser.add_argument("--max-budget", help="maximum total budget", default=Decimal(1))
         args=parser.parse_args()
 
