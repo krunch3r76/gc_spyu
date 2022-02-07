@@ -70,7 +70,7 @@ def print_env_info(golem: Golem):
     )
 
 
-def run_golem_example(example_main, log_file=None):
+def run_golem_example(spyu_coro, log_file=None):
     # This is only required when running on Windows with Python prior to 3.8:
     windows_event_loop_fix()
 
@@ -84,7 +84,7 @@ def run_golem_example(example_main, log_file=None):
         )
 
     loop = asyncio.get_event_loop()
-    task = loop.create_task(example_main)
+    task = loop.create_task(spyu_coro)
 
     try:
         loop.run_until_complete(task)

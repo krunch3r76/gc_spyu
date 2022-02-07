@@ -4,7 +4,6 @@
 PROVIDERNAME=${1:-"\{PROVIDERNAME\}"}
 PROVIDERID=${2:-"\{PROVIDERID\}"}
 UNIXTIME=$3
-FLAG_FOR_TOPOLOGY=${4:-0} # must be 1 to enable
 WORKDIR=/golem/work
 OUTPUTDIR=/golem/output
 

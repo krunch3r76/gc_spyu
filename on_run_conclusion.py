@@ -19,7 +19,7 @@ def console_interface(nodeInfoIds, myModel):
     debug.dlog(ss)
     recordset = myModel.execute(ss) 
     records=recordset.fetchall()
-    print(f"node address\tnode name\n model\tcost of procurement in GLM")
+    print(f"\n\nnode address\tnode name\n model\tcost of procurement in GLM\n")
 
     for row in records:
         print(f"{row[0]}\t{row[1]}")

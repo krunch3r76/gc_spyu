@@ -8,7 +8,7 @@ class luserset(set):
 
     def associate_name(self, id_, name):
         """ associate a name to an id """
-        debug.dlog(f"associating {name} to {id_}")
+        # debug.dlog(f"associating {name} to {id_}")
         self.name_to_id[name] = id_
 
     def check_for_name(self, name):
@@ -25,7 +25,6 @@ class luserset(set):
 
     def difference(self, other_set):
         """ map names in other_set to addresses, remove the names if addresses exist here """
-        debug.dlog(self.name_to_id)
         mapped_set = set() # final set considering names first
         mapped_names_set = set()
         for name in other_set:

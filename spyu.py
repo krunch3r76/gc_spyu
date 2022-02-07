@@ -185,6 +185,7 @@ class Provisioner():
                 debug.dlog(f"****************************CancelledError inside worker**************************")
                 raise
             except:
+                debug.dlog(f"other exception being raised!")
                 raise
             else:
                 # place result along with meta into a dict
@@ -264,90 +265,94 @@ class Provisioner():
 
 
 
+#####################################
+#           spyuCTX                 #
+#####################################
+class spyuCTX:
+    def __init__(self, myModel):
+        self.mySummaryLogger=None
+        self.provisioner=None
+        self.myModel=myModel
+
+    async def __call__(self, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37"), perRunBudget=Decimal("0.1"), whitelist=None):
+        """ add to parser and parse CLI """
+        parser = utils.build_parser("spyu : a provider cpu topology inspector")
+        parser.add_argument("--disable-logging", action="store_true", help="disable yapapi logging")
+        # parser.add_argument("--results-dir", help="where to store downloaded task results", default="/tmp/spyu_workdir")
+        # parser.add_argument("--max-budget", help="maximum total budget", default=Decimal(1))
+        args=parser.parse_args()
+
+        if args.spy == None and os.environ.get('GNPROVIDER', None) == None:
+            print("Usage: spyu --spy <space delimited list of node names>")
+            print("Example: spyu --spy q53 sycamore")
+            sys.exit(1)
+
+        """ init """
+        glmSpent=Decimal(0.0)
+
+        """ populate whitelist from environment (filterms) """
+        if args.spy != None:
+            for element in args.spy:
+                if ',' in element:
+                    input("WARNING, commas seen in node names passed as arguments to --spy. If this was not intentional please quit otherwise press enter to proceed")
+                    break
+            whitelist=set(args.spy)
+            os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
+        else:
+            print("Using GNPROVIDER filterms environment variable to select nodes")
+            input("press enter to proceed")
+
+        debug.dlog(f"---++++ os.environ['GNPROVIDER'] is {os.environ['GNPROVIDER']}")
+        whitelist = set(get_gnprovider_as_list())
+        self.whitelist = whitelist
+        """ create blacklist """
+        blacklist=luserset()
+        # TODO populate blacklist with node addresses according to rules such as < time since last
+
+        """ enable logging """
+        if not args.disable_logging:
+            enable_default_logger(log_file=args.log_file)
+
+        """ setup package """
+        package = await vm.repo(
+            image_hash="c1d015f76bbe8d6fa4ed8ffbd5280e261f4025dcca75490f0fd716cf"
+        )
+
+        """ setup strategy """
+        strat=yapapi.strategy.DummyMS(
+            max_fixed_price=Decimal("0.1")
+            , max_price_for={
+                yapapi.props.com.Counter.CPU: CPUmax/Decimal('3600')
+                , yapapi.props.com.Counter.TIME: ENVmax/Decimal('3600')
+                }
+        )
+
+        """ filter strategy """
+        filtered_strategy = FilterProviderMS(blacklist, strat)
+
+        """ setup event consumer """
+        self.mySummaryLogger=MySummaryLogger(blacklist, self.myModel, self.whitelist)
+
+        """ setup provisioner """
+        self.provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=self.mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(self.myModel))
+        print(f"waiting on {' '.join(whitelist)}")
+        cancelled=False
+        while not cancelled and len(whitelist) > 0:
+            cancelled = await self.provisioner()
+            whitelist = blacklist.difference(whitelist)
+            if len(whitelist) > 0:
+                print(f"still waiting on {' '.join(whitelist)}")
+
+        # return mySummaryLogger.sum_invoices(), provisioner.nodeInfoIds, myModel
+        """
+        print("\nTotal glm spent:", mySummaryLogger.sum_invoices())
+
+        on_run_conclusion(provisioner.nodeInfoIds, myModel)
+        """
 
 
-
-
-async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37"), perRunBudget=Decimal("0.1"), whitelist=None):
-    """ add to parser and parse CLI """
-    parser = utils.build_parser("spyu : a provider cpu topology inspector")
-    parser.add_argument("--disable-logging", action="store_true", help="disable yapapi logging")
-    # parser.add_argument("--results-dir", help="where to store downloaded task results", default="/tmp/spyu_workdir")
-    # parser.add_argument("--max-budget", help="maximum total budget", default=Decimal(1))
-    args=parser.parse_args()
-
-    if args.spy == None and os.environ.get('GNPROVIDER', None) == None:
-        print("Usage: spyu --spy <space delimited list of node names>")
-        print("Example: spyu --spy q53 sycamore")
-        sys.exit(1)
-
-    """ init """
-    glmSpent=Decimal(0.0)
-
-    """ populate whitelist from environment (filterms) """
-    if args.spy != None:
-        for element in args.spy:
-            if ',' in element:
-                input("WARNING, commas seen in node names passed as arguments to --spy. If this was not intentional please quit otherwise press enter to proceed")
-                break
-        whitelist=set(args.spy)
-        os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
-    else:
-        print("Using GNPROVIDER filterms environment variable to select nodes")
-        input("press enter to proceed")
-
-    debug.dlog(f"---++++ os.environ['GNPROVIDER'] is {os.environ['GNPROVIDER']}")
-    whitelist = set(get_gnprovider_as_list())
-
-    """ create blacklist """
-    blacklist=luserset()
-    # TODO populate blacklist with node addresses according to rules such as < time since last
-
-    """ enable logging """
-    if not args.disable_logging:
-        enable_default_logger(log_file=args.log_file)
-
-    """ setup package """
-    package = await vm.repo(
-        image_hash="6c6dc69d558ae63199de82cf6ff96c7e1a7d16924d6315f7ad131f99"
-    )
-
-    """ setup strategy """
-    strat=yapapi.strategy.DummyMS(
-        max_fixed_price=Decimal("0.1")
-        , max_price_for={
-            yapapi.props.com.Counter.CPU: CPUmax/Decimal('3600')
-            , yapapi.props.com.Counter.TIME: ENVmax/Decimal('3600')
-            }
-    )
-
-    """ filter strategy """
-    filtered_strategy = FilterProviderMS(blacklist, strat)
-
-    """ setup event consumer """
-    mySummaryLogger=MySummaryLogger(blacklist, myModel)
-
-    """ setup provisioner """
-    provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(myModel))
-    print(f"waiting on {str(whitelist)}")
-    cancelled=False
-    while not cancelled and len(whitelist) > 0:
-        cancelled = await provisioner()
-        whitelist = blacklist.difference(whitelist)
-        if len(whitelist) > 0:
-            print(f"still waiting on {str(whitelist)}")
-
-    return mySummaryLogger.sum_invoices(), provisioner.nodeInfoIds, myModel
-    """
-    print("Total glm spent:", mySummaryLogger.sum_invoices())
-
-    on_run_conclusion(provisioner.nodeInfoIds, myModel)
-    """
-
-
-
-
-
+    def get_results(self):
+        return self.mySummaryLogger.sum_invoices(), self.provisioner.nodeInfoIds, self.myModel
 
 
 
@@ -374,13 +379,25 @@ if __name__ == "__main__":
 
 
     myModel =MyModel(str(dbfilepath))
-    sumInvoices, nodeInfoIds, myModel = utils.run_golem_example(spyu(myModel))
+    spyu_ctx=spyuCTX(myModel)
+    utils.run_golem_example(spyu_ctx())
+    sumInvoices, nodeInfoIds, myModel = spyu_ctx.get_results()
 
-    print("Total glm spent:", sumInvoices)
-    try:
-        on_run_conclusion(nodeInfoIds, myModel)
-    except KeyboardInterrupt:
-        print("\nas you wish")
+    if len(spyu_ctx.mySummaryLogger.skipped) > 0:
+        msg="The following providers were skipped because they were unreachable or otherwise uncooperative:"
+        print(f"\n{msg}")
+        print("-" * (len(msg)-1))
+        for skipped in spyu_ctx.mySummaryLogger.skipped:
+            print(skipped)
+        print("-" * (len(msg)-1))
+
+    print("\nTotal glm spent:", sumInvoices)
+
+    if isinstance(nodeInfoIds, list)  and len(nodeInfoIds) > 0:
+        try:
+            on_run_conclusion(nodeInfoIds, myModel)
+        except KeyboardInterrupt:
+            print("\nas you wish")
     
 # save
 # future_result = script.run("/bin/sh", "-c", "/bin/echo [$(lscpu -J | jq -c),$(lscpu -JC | jq -c)] | sed s/\"field\"/\"k\"/g | sed s/\"data\"/\"v\"/g")
