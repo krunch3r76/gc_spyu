@@ -1,5 +1,5 @@
 # gc_spyu
-espy cpu model information from specific providers and persistently store for later retrieval. ( Optionally, pry into topology information. BEING PHASED OUT )
+espy cpu model information from specific providers and persistently store for later retrieval. ( Optionally, pry into topology information. BEING PHASED OUT - emphasis will be placed on low cost targeted model name gathering )
 
 The current Golem network conceals the model information of providers. While obtaining model specifications is possible utilizing the yapapi repository examples (Golem code), it only randomly selects providers.  gc_spyu solves this problem of only random specifications by facilitating the procurement of specific provider's model information.
 
