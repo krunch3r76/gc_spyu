@@ -19,7 +19,7 @@ $ cd gc_spyu
 
 # DEMO
 https://user-images.githubusercontent.com/46289600/152594180-054dad3a-4c53-4103-857e-2baf6c4e84b6.mp4
-this video demonstrates the add-topology feature of the current version of gc_spyu. however, gathering topology information will be removed in the next version and but added as a subproject. topology information is not accurately reported as of this writing.
+this video demonstrates the add-topology feature of the current version of gc_spyu. however, gathering topology information will be removed in the next version, likely to be archived a different repo project. topology information is not accurately reported as of this writing.
 
 # USAGE
 
