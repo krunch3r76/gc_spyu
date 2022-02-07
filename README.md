@@ -1,7 +1,7 @@
 # gc_spyu
-Obtain cpu model information from specific providers and persistently store for later retrieval. Optionally, pry into topology information.
+Espy cpu model information from specific providers and persistently store for later retrieval. Optionally, pry into topology information.
 
-The current Golem network conceals the model information of providers. While obtaining model specifications is possible utilizing the yapapi repository (Golem code), it only randomly selects providers.  gc_spyu solves this problem of only random specifications by facilitating the procurement of specific provider's model information. Additionally, the platform's reported topology can be downloaded.
+The current Golem network conceals the model information of providers. While obtaining model specifications is possible utilizing the yapapi repository examples (Golem code), it only randomly selects providers.  gc_spyu solves this problem of only random specifications by facilitating the procurement of specific provider's model information.
 
 For information on the global supercomputer that is Golem and how to run or engineer apps on it, visit https://www.golem.network
 
@@ -29,16 +29,16 @@ https://user-images.githubusercontent.com/46289600/152594180-054dad3a-4c53-4103-
 ```  
 ## to inspect etam and q53 on testnet, subnet devnet-beta
 ```bash
-(myvenv)$ ./spyu.py --disable-logging --spy etam q53 --add-topology
+(myvenv)$ ./spyu.py --disable-logging --spy etam q53
 ```
 ## to inspect collossus, odra, and whirlwind on testnet, subnet public-beta
 ```bash
-(myvenv)$ ./spyu.py --disable-logging --subnet-tag public-beta --spy collossus odra whirlwind --add-topology
+(myvenv)$ ./spyu.py --disable-logging --subnet-tag public-beta --spy collossus odra whirlwind
 ```
 
 ## to use the gc__filterms / gc__listoffers environment setting
 ```bash
-(myvenv)$ GNPROVIDER=['0x3dd491','0xcef890','etam'] ./spyu --add-topology
+(myvenv)$ GNPROVIDER=['0x3dd491','0xcef890','etam'] ./spyu
 ```
 # CREDITS
 The topology information is taken by running the latest version of openmpi's hwloc. For more information on hwloc, visit: https://www.open-mpi.org/projects/hwloc/. As more CPUs etc topologies emerge, the app is able to update to the latest version by rebuilding the gvmi image from the included Dockerfile. For more on how to rebuild a Golem image, visit https://www.golem.network
@@ -46,7 +46,7 @@ The topology information is taken by running the latest version of openmpi's hwl
 utils.py from yapapi examples was utilized to start the Golem process and help manage exceptions. To see the original code, browse: https://github.com/golemfactory/yapapi/blob/master/examples/utils.py
 
 ## about topology
-CPU topology is becoming increasingly important in programming to leverage CPUs to maximum efficiency. gc_spyu empowers golem requestors to obtain detailed topology information on any node for mGLM (milli); thereby empowering developers to inspect cache sizes on nodes to enable writing low level code that aligns with the fastest accessible memory banks!
+gc_spyu is capable of running a topology inspector (lstopo of the hwloc suite from open-mpi). CPU topology is becoming increasingly important in programming to leverage CPUs to maximum efficiency. gc_spyu has this capability in the future where provider runs will occur without any virtualization or with complete pass thru. When pass-thru comes to golem, requestors shall be be able to obtain detailed topology information on any node for mGLM (milli); thereby empowering developers to inspect cache sizes on nodes to enable writing low level code that aligns with the fastest accessible memory banks!
 
 # MORE
 Stay tuned, more to come including graphical topologies (not ascii), historical lookups, and gc_listoffers interop (some interop already implied by filterms).
