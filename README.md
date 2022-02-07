@@ -41,12 +41,13 @@ this video demonstrates the add-topology feature of the current version of gc_sp
 (myvenv)$ GNPROVIDER=['0x3dd491','0xcef890','etam'] ./spyu
 ```
 # CREDITS
-The topology information is taken by running the latest version of openmpi's hwloc. For more information on hwloc, visit: https://www.open-mpi.org/projects/hwloc/. As more CPUs etc topologies emerge, the app is able to update to the latest version by rebuilding the gvmi image from the included Dockerfile. For more on how to rebuild a Golem image, visit https://www.golem.network
-
 utils.py from yapapi examples was utilized to start the Golem process and help manage exceptions. To see the original code, browse: https://github.com/golemfactory/yapapi/blob/master/examples/utils.py
+
 
 ## about topology
 gc_spyu is capable of running a topology inspector (lstopo of the hwloc suite from open-mpi). CPU topology is becoming increasingly important in programming to leverage CPUs to maximum efficiency. gc_spyu has this capability in the future where provider runs will occur without any virtualization or with complete pass thru. When pass-thru comes to golem, requestors shall be be able to obtain detailed topology information on any node for mGLM (milli); thereby empowering developers to inspect cache sizes on nodes to enable writing low level code that aligns with the fastest accessible memory banks!
+
+The topology information is gathered by running the latest version of openmpi's hwloc on the provider vm. For more information on hwloc, visit: https://www.open-mpi.org/projects/hwloc/. As more CPUs etc topologies emerge, the app is able to update to the latest version by rebuilding the gvmi image from the included Dockerfile. For more on how to rebuild a Golem image, visit https://www.golem.network
 
 # MORE
 Stay tuned, more to come including graphical topologies (not ascii), historical lookups, and gc_listoffers interop (some interop already implied by filterms).
