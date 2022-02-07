@@ -17,7 +17,7 @@ $ cd gc_spyu
 (myvenv)$ pip install -r requirements.txt
 ```
 
-# DEM
+# DEMO
 
 https://user-images.githubusercontent.com/46289600/152745449-44dd2397-a4ea-41e0-8584-9eddccda1427.mp4
 
