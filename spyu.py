@@ -294,13 +294,23 @@ class spyuCTX:
         if args.spy != None:
             for element in args.spy:
                 if ',' in element:
-                    input("WARNING, commas seen in node names passed as arguments to --spy. If this was not intentional please quit otherwise press enter to proceed")
-                    break
+                    try:
+                        input("WARNING, commas seen in node names passed as arguments to --spy. If this was not intentional please quit otherwise press enter to proceed")
+                    except KeyboardInterrupt:
+                        print()
+                        sys.exit(0)
+                    else:
+                        break
             whitelist=set(args.spy)
             os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
         else:
             print("Using GNPROVIDER filterms environment variable to select nodes")
-            input("press enter to proceed")
+            try:
+                input("press enter to proceed")
+            except KeyboardInterrupt:
+                print()
+                sys.exit(0)
+
 
         debug.dlog(f"---++++ os.environ['GNPROVIDER'] is {os.environ['GNPROVIDER']}")
         whitelist = set(get_gnprovider_as_list())
@@ -350,7 +360,7 @@ class spyuCTX:
         on_run_conclusion(provisioner.nodeInfoIds, myModel)
         """
 
-
+    """ get results """
     def get_results(self):
         return self.mySummaryLogger.sum_invoices(), self.provisioner.nodeInfoIds, self.myModel
 
