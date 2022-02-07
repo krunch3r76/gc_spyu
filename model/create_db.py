@@ -1,7 +1,7 @@
 import sqlite3
 from decimal import Decimal
 import debug
-
+import sys
 """create_db
 inputs                          process                     output
  dbpath                         setup adapters              conn
@@ -40,15 +40,6 @@ def create_db(dbpath, isolation_level=None):
             ")"
             )
 
-    con.execute("CREATE TABLE IF NOT EXISTS topology("
-            "topologyId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
-            ", nodeInfoId REFERENCES nodeInfo(nodeInfoId)"
-            ", svg TEXT DEFAULT ''"
-            ", asc TEXT DEFAULT ''"
-            ", xml TEXT DEFAULT ''"
-            ")"
-            )
-
     con.execute("CREATE TABLE IF NOT EXISTS offer("
             "offerId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
             ", nodeInfoId REFERENCES nodeInfo(nodeInfoId)"
@@ -70,8 +61,21 @@ def create_db(dbpath, isolation_level=None):
             ")"
             )
 
-    con.execute("CREATE TABLE IF NOT EXISTS scchema_version("
-            "version INT DEFAULT 1"
+    try:
+        r = con.execute("SELECT COUNT(*) FROM scchema_version").fetchall()
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e):
+            TOPOVERSION=False
+    else:
+        TOPOVERSION=True
+
+    if TOPOVERSION:
+        print("Uh oh, the version of gc_spy you are invoking is not compatible with an old database.")
+        print(f"Please delete (or backup and delete) the file {dbpath} and rerun.")
+        sys.exit(1)
+
+    con.execute("CREATE TABLE IF NOT EXISTS schema_version("
+            "version INT DEFAULT 2"
             ")"
     )
 

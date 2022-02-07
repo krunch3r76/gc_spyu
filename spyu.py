@@ -39,7 +39,7 @@ g_source_dir=pathlib.Path(__file__).resolve().parent
 
 
 class MyModel():
-    def __init__(self, dbpath=g_source_dir/"model/topology.db"):
+    def __init__(self, dbpath):
         self.con = create_db(dbpath)
 
     def execute(self, *args):
@@ -73,35 +73,20 @@ class MyModel():
 
 
 
-
-
-
-
-
-
-
-
 def on_accepted_result(myModel :MyModel):
     """closure handler for each task a worker executes"""
     # called by provision_to_golem
     async def closure(result):
         # result := { provider_name: , json_file: , provider_id: , agr_id: }
-        """ loadedTopology := { unixtime: , name: , addr: , model: , svg: , asc:, xml: }"""
+        """ gatheredIntel := { unixtime: , name: , addr: , model: }"""
         debug.dlog(f"golem.execute_tasks has returned a Task object with result: {result}")
         with open(result['json_file'], "r") as json_fp:
-            loadedTopology = json.load(json_fp)
-        providerId = myModel.insert_and_id("INSERT OR IGNORE INTO 'provider'(addr) VALUES (?)", [ loadedTopology['addr'] ] )
+            gatheredIntel = json.load(json_fp)
+        providerId = myModel.insert_and_id("INSERT OR IGNORE INTO 'provider'(addr) VALUES (?)", [ gatheredIntel['addr'] ] )
         nodeInfoId = myModel.insert_and_id("INSERT INTO 'nodeInfo'(providerId, modelname, unixtime)"
                 " VALUES(?, ?, ?)"
-                , [ providerId, loadedTopology['model'], loadedTopology['unixtime'] ]
+                , [ providerId, gatheredIntel['model'], gatheredIntel['unixtime'] ]
                 )
-        if loadedTopology['xml']!="":
-            topologyId = myModel.insert_and_id("INSERT INTO 'topology'(svg, asc, xml, nodeInfoId)"
-                    " VALUES(?, ?, ?, ?)"
-                    , [ loadedTopology['svg'], loadedTopology['asc'], loadedTopology['xml'], nodeInfoId ]
-                    )
-        else:
-            topologyId = None
         myModel.insert_and_id("INSERT INTO 'agreement'(nodeInfoId, id) VALUES (?, ?)", [ nodeInfoId, result['agr_id']])
         myModel.execute("INSERT INTO 'offer'(nodeInfoId, data) VALUES (?, ?)", [ nodeInfoId, json.dumps(result['offer']) ] )
         return [ nodeInfoId ]
@@ -136,9 +121,15 @@ def on_accepted_result(myModel :MyModel):
 
 
 
+
+
+
+
+
+
 class Provisioner():
     """setup context and interface for launching a Golem instance"""
-    def __init__(self, perRunBudget, subnet_tag, payment_driver, payment_network, event_consumer, strategy, package, result_callback, golem_timeout=timedelta(minutes=6), add_topology=False):
+    def __init__(self, perRunBudget, subnet_tag, payment_driver, payment_network, event_consumer, strategy, package, result_callback, golem_timeout=timedelta(minutes=6)):
         self._perRunBudget         =perRunBudget
         self.__golem_timeout        =golem_timeout # the timeout for the golem instance | >= script timeout
         self._subnet_tag            =subnet_tag
@@ -153,7 +144,6 @@ class Provisioner():
         self.__env_printed          =False
         self.__timeStartLast        =None
         self.nodeInfoIds           =[] # topologies downloaded
-        self.__add_topology          = add_topology
         # comment: golem_timeout set too low (e.g. < 10 minutes) might result in no offers being collected
 
 
@@ -186,9 +176,9 @@ class Provisioner():
                     )
 
             script = context.new_script(timeout=timedelta(minutes=2))
-            script.run("/root/provider.sh", context.provider_name, context.provider_id, str(datetime.now().timestamp()), "1" if task.data['add-topology'] else "0")
+            script.run("/root/provider.sh", context.provider_name, context.provider_id, str(datetime.now().timestamp()))
             target=f"{task.data['results-dir']}/{context.provider_id}.json"
-            script.download_file(f"/golem/output/topology.json", target)
+            script.download_file(f"/golem/output/intelGathered.json", target)
             try:
                 yield script
             except asyncio.CancelledError:
@@ -243,7 +233,7 @@ class Provisioner():
             """ send task """
             async for completed_task in golem.execute_tasks(
                     self._worker
-                    , [Task(data={"results-dir": self._workdir, "add-topology": self.__add_topology})]
+                    , [Task(data={"results-dir": self._workdir})]
                     , payload=self._package
                     , max_workers=1
                     , timeout=self.__golem_timeout # arbitrary if self._wait_for_provider_timeout less
@@ -282,7 +272,6 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
     """ add to parser and parse CLI """
     parser = utils.build_parser("spyu : a provider cpu topology inspector")
     parser.add_argument("--disable-logging", action="store_true", help="disable yapapi logging")
-    parser.add_argument("--add-topology", default=False, action="store_true", help="obtain detailed topology information (hwloc)")
     # parser.add_argument("--results-dir", help="where to store downloaded task results", default="/tmp/spyu_workdir")
     # parser.add_argument("--max-budget", help="maximum total budget", default=Decimal(1))
     args=parser.parse_args()
@@ -320,7 +309,7 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
 
     """ setup package """
     package = await vm.repo(
-        image_hash="29dea5649cac618ca547486058b3bd9c6d5474e7944605c33a28a4aa"
+        image_hash="6c6dc69d558ae63199de82cf6ff96c7e1a7d16924d6315f7ad131f99"
     )
 
     """ setup strategy """
@@ -339,7 +328,7 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
     mySummaryLogger=MySummaryLogger(blacklist, myModel)
 
     """ setup provisioner """
-    provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(myModel), add_topology=args.add_topology)
+    provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(myModel))
     print(f"waiting on {str(whitelist)}")
     cancelled=False
     while not cancelled and len(whitelist) > 0:
@@ -347,7 +336,6 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
         whitelist = blacklist.difference(whitelist)
         if len(whitelist) > 0:
             print(f"still waiting on {str(whitelist)}")
-        # print(f"topology ids: {provisioner.nodeInfoIds}")
 
     return mySummaryLogger.sum_invoices(), provisioner.nodeInfoIds, myModel
     """
