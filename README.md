@@ -29,7 +29,7 @@ this video demonstrates the add-topology feature of the current version of gc_sp
 ```  
 ## to inspect etam and q53 on testnet, subnet devnet-beta
 ```bash
-(myvenv)$ ./spyu.py --disable-logging --spy etam q53
+(myvenv)$ ./spyu.py --spy etam q53
 ```
 ## to inspect collossus, odra, and whirlwind on testnet, subnet public-beta
 ```bash
