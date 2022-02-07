@@ -377,12 +377,12 @@ async def spyu(myModel, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf"), maxGlm=D
 if __name__ == "__main__":
     debug.dlog("starting")
 
-    datadir = get_datadir() / "gc_spyu"
+    datadir = get_datadir() / "gc_spyu_topology"
     try:
         datadir.mkdir(parents=True)
     except FileExistsError:
         pass
-    dbfilepath=datadir / "gc_spyu.db"
+    dbfilepath=datadir / "gc_spyu_topology.db"
 
 
     myModel =MyModel(str(dbfilepath))
@@ -392,7 +392,7 @@ if __name__ == "__main__":
     try:
         on_run_conclusion(nodeInfoIds, myModel)
     except KeyboardInterrupt:
-        print("\nas you wish")
+        print("\nit's okay, until next time")
     
 # save
 # future_result = script.run("/bin/sh", "-c", "/bin/echo [$(lscpu -J | jq -c),$(lscpu -JC | jq -c)] | sed s/\"field\"/\"k\"/g | sed s/\"data\"/\"v\"/g")
