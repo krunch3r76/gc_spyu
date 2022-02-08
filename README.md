@@ -1,7 +1,7 @@
 # gc_spyu
 espy cpu model information from specific providers and persistently store for later retrieval.
 
-The current Golem network conceals the model information of providers. While obtaining model specifications is possible utilizing the yapapi repository examples (Golem code), it only randomly selects providers.  gc_spyu solves this problem of only random specifications by facilitating the procurement of specific provider's model information.
+The current Golem network conceals the model information of providers. While obtaining model specifications is possible utilizing the yapapi repository examples (Golem code), it only randomly selects providers.  gc_spyu solves this problem of only random specifications by facilitating the procurement of specific provider's (cpu) model information.
 
 For information on the global supercomputer that is Golem and how to run or engineer apps on it, visit https://www.golem.network
 
