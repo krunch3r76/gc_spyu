@@ -11,7 +11,7 @@ For a listing of providers to inspect, visit https://stats.golem.network or invo
 ```bash
 $ git clone https://github.com/krunch3r76/gc_spyu.git
 $ cd gc_spyu
-(gc_spyu)$ git checkout v0.0.5
+(gc_spyu)$ git checkout v0.0.6
 (gc_spyu)$ python -m venv myvenv
 (gc_spyu)$ . myvenv/bin/activate
 (myvenv)$ pip install -r requirements.txt
@@ -26,20 +26,20 @@ https://user-images.githubusercontent.com/46289600/152745449-44dd2397-a4ea-41e0-
 
 ## invocation
 ```bash
-(myvenv)$ ./spyu.py --spy <space delimited list of nodes>
+(myvenv)$ ./gc_spyu.py --spy <space delimited list of nodes>
 ```  
 ## to inspect etam and q53 on testnet, subnet devnet-beta
 ```bash
-(myvenv)$ ./spyu.py --spy etam q53
+(myvenv)$ ./gc_spyu.py --spy etam q53
 ```
 ## to inspect collossus, odra, and whirlwind on testnet, subnet public-beta
 ```bash
-(myvenv)$ ./spyu.py --disable-logging --subnet-tag public-beta --spy collossus odra whirlwind
+(myvenv)$ ./gc_spyu.py --disable-logging --subnet-tag public-beta --spy collossus odra whirlwind
 ```
 
 ## to use the gc__filterms / gc__listoffers environment setting
 ```bash
-(myvenv)$ GNPROVIDER=['0x3dd491','0xcef890','etam'] ./spyu
+(myvenv)$ GNPROVIDER=['0x3dd491','0xcef890','etam'] ./gc_spyu
 ```
 # CREDITS
 utils.py from yapapi examples was utilized to start the Golem process and help manage exceptions. To see the original code, browse: https://github.com/golemfactory/yapapi/blob/master/examples/utils.py
