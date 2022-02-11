@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from gc_spyu import spyu
 from gc_spyu import utils
-from gc_spyu.on_run_conclusion import on_run_conclusion
+from gc_spyu.view.on_run_conclusion import on_run_conclusion
 import debug
 
 if __name__ == "__main__":
