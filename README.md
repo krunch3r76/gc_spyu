@@ -51,6 +51,7 @@ https://user-images.githubusercontent.com/46289600/152745449-44dd2397-a4ea-41e0-
 # CREDITS
 utils.py from yapapi examples was utilized to start the Golem process and help manage exceptions. To see the original code, browse: https://github.com/golemfactory/yapapi/blob/master/examples/utils.py
 
+data_directory.py module to get a cross-platform specific data directory was adapted from code shared by an Honest Abe on a discussion at: https://www.py4u.net/discuss/161917
 
 
 # MORE
