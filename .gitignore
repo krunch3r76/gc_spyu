@@ -15,3 +15,5 @@ test.py
 output*.txt
 tmp/
 bench/
+tags
+extra.db

@@ -2,6 +2,8 @@ import sqlite3
 from decimal import Decimal
 import debug
 import sys
+import pathlib
+
 """create_db
 inputs                          process                     output
  dbpath                         setup adapters              conn
@@ -10,7 +12,10 @@ inputs                          process                     output
                                 create
 """
 def create_db(dbpath, isolation_level=None):
-    debug.dlog(f"creating database at {dbpath}")
+    model_working_dir=pathlib.Path(__file__).resolve().parent
+    extradb_file=model_working_dir/"extra.db"
+    extradbpath=str(extradb_file)
+
     """setup adapters"""
     def adapt_decimal(d):
         return str(d)
@@ -24,39 +29,43 @@ def create_db(dbpath, isolation_level=None):
 
     """connect"""
     con = sqlite3.connect(dbpath, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES, isolation_level=isolation_level)
+#    con_extra = sqlite3.connect(extrabpath, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES, isolation_level=isolation_level)
+    con.execute(f"ATTACH '{extradbpath}' AS extra")
+    con.execute("PRAGMA foreign_keys=ON")
 
     """create"""
-    con.execute("CREATE TABLE IF NOT EXISTS provider("
+    con.execute("CREATE TABLE IF NOT EXISTS provider ("
             "providerId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
             ", addr TEXT NOT NULL UNIQUE"
             ")"
             )
 
-    con.execute("CREATE TABLE IF NOT EXISTS nodeInfo("
+    con.execute("CREATE TABLE IF NOT EXISTS nodeInfo ("
             "nodeInfoId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
             ", providerId REFERENCES provider(providerId)"
             ", modelname TEXT DEFAULT ''"
             ", unixtime DECIMAL NOT NULL"
+            ", nodename TEXT NOT NULL"
             ")"
             )
 
-    con.execute("CREATE TABLE IF NOT EXISTS offer("
+    con.execute("CREATE TABLE IF NOT EXISTS extra.offer ("
             "offerId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
-            ", nodeInfoId REFERENCES nodeInfo(nodeInfoId)"
+            ", nodeInfoId NOT NULL"
             ", data JSON NOT NULL"
             ")"
             )
 
-    con.execute("CREATE TABLE IF NOT EXISTS cost("
+    con.execute("CREATE TABLE IF NOT EXISTS extra.cost ("
             "costId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
-            ", nodeInfoId REFERENCES nodeInfo(nodeInfoId) NOT NULL"
+            ", nodeInfoId NOT NULL"
             ", total DECIMAL NOT NULL"
             ")"
             )
 
-    con.execute("CREATE TABLE IF NOT EXISTS agreement("
+    con.execute("CREATE TABLE IF NOT EXISTS extra.agreement ("
             "agreementId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
-            ", nodeInfoId REFERENCES nodeInfo(nodeInfoId) NOT NULL"
+            ", nodeInfoId NOT NULL"
             ", id TEXT"
             ")"
             )
@@ -74,10 +83,26 @@ def create_db(dbpath, isolation_level=None):
         print(f"Please delete (or backup and delete) the file {dbpath} and rerun.")
         sys.exit(1)
 
-    con.execute("CREATE TABLE IF NOT EXISTS schema_version("
-            "version INT DEFAULT 2"
-            ")"
-    )
+    schema_version=3
+
+    ss = "CREATE TABLE IF NOT EXISTS schema_version" \
+        "(" + f"version INT NOT NULL" + ")" 
+    con.execute(ss)
+
+    # debug
+
+    recordset = con.execute("SELECT version FROM schema_version").fetchall()
+
+    if len(recordset) == 0:
+        ss = "INSERT INTO  schema_version (version) VALUES (?)"
+        con.execute(ss, (schema_version,) )
+    else:
+        row=recordset[0]
+        schemaCurrent=row[0]
+        if schemaCurrent < 3:
+            print("Uh oh, the version of gc_spy you are invoking is not compatible with an old database.")
+            print(f"Please delete (or backup and delete) the file {dbpath} and rerun.")
+            sys.exit(1)
 
     """output"""
     return con

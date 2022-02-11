@@ -1,10 +1,12 @@
-"""Utilities for yapapi example scripts."""
+"""Modified version of utils.py from yapapi example scripts."""
 # originally from https://github.com/golemfactory/yapapi/examples
 import asyncio
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 import tempfile
+import traceback
+
 
 import colorama  # type: ignore
 
@@ -32,7 +34,8 @@ colorama.init()
 
 def build_parser(description: str) -> argparse.ArgumentParser:
     current_time_str = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S%z")
-    default_log_path = Path(tempfile.gettempdir()) / f"yapapi_{current_time_str}.log"
+    default_log_path = Path( Path(tempfile.gettempdir())/"gcspyu_logs").mkdir(parents=True,exist_ok=True)
+    # default_log_path = Path(tempfile.gettempdir()) / f"yapapi_{current_time_str}.log"
 
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter )
     parser.add_argument(
@@ -115,5 +118,10 @@ def run_golem_example(spyu_coro, log_file=None):
             )
         except (asyncio.CancelledError, KeyboardInterrupt):
             pass
+    except Exception as e:
+        # tb=sys.exc_info()[2]
+        print(f"\033[1mEXCEPTION:\033[0m\n")
+        print(f"{traceback.print_exc()}")
+
     else:
         return task.result()

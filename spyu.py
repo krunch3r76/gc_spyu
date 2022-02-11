@@ -18,6 +18,7 @@ import sqlite3
 import tempfile
 import pathlib
 import os
+import traceback
 
 from yapapi import Golem, Task, WorkContext
 from yapapi.log import enable_default_logger
@@ -49,18 +50,28 @@ class MyModel():
         return recordset
 
     def execute_and_id(self, *args):
-        # debug.dlog(args)
-        recordset = None
-        cur = self.con.cursor()
-        recordset = cur.execute(*args)
-        lastrowid = cur.lastrowid
-        rv = (lastrowid, recordset,)
+        debug.dlog(f"{args} in-transaction: {self.con.in_transaction}")
+        recordset_cursor = None
+        recordset_cursor = self.con.execute(*args)
+        lastrowid = recordset_cursor.lastrowid
+        rv = (lastrowid, recordset_cursor,)
         return rv
 
     def insert_and_id(self, *args):
         return self.execute_and_id(*args)[0]
 
 
+    def fetch_field_value(self, *args):
+        """ get the value of a single field (first of the select statement) or return None """
+        field_value = None
+        recordset = self.execute(*args).fetchall()
+        if len(recordset) == 1:
+            field_value=recordset[0][0] # first value of first row
+        elif len(recordset) > 1:
+            debug.dlog("raising exception")
+            raise Exception("expected one row but saw many")
+
+        return field_value
 
 
 
@@ -69,28 +80,27 @@ class MyModel():
 
 
 
-
-
-
-
-def on_accepted_result(myModel :MyModel):
+def on_accepted_result(myModel :MyModel, mySummaryLogger: MySummaryLogger):
     """closure handler for each task a worker executes"""
     # called by provision_to_golem
-    async def closure(result):
+    async def on_accepted_result_closure(result):
         # result := { provider_name: , json_file: , provider_id: , agr_id: }
         """ gatheredIntel := { unixtime: , name: , addr: , model: }"""
         debug.dlog(f"golem.execute_tasks has returned a Task object with result: {result}")
         with open(result['json_file'], "r") as json_fp:
             gatheredIntel = json.load(json_fp)
-        providerId = myModel.insert_and_id("INSERT OR IGNORE INTO 'provider'(addr) VALUES (?)", [ gatheredIntel['addr'] ] )
-        nodeInfoId = myModel.insert_and_id("INSERT INTO 'nodeInfo'(providerId, modelname, unixtime)"
-                " VALUES(?, ?, ?)"
-                , [ providerId, gatheredIntel['model'], gatheredIntel['unixtime'] ]
+        providerId = myModel.fetch_field_value(f"SELECT providerId from provider WHERE addr = '{gatheredIntel['addr']}'")
+        if providerId == None:
+            providerId = myModel.insert_and_id("INSERT INTO 'provider'(addr) VALUES (?)", [ gatheredIntel['addr'] ] )
+
+        nodeInfoId = myModel.insert_and_id("INSERT INTO 'nodeInfo'(providerId, modelname, unixtime, nodename)"
+                " VALUES(?, ?, ?, ?)"
+                , [ providerId, gatheredIntel['model'], gatheredIntel['unixtime'], gatheredIntel['name'] ]
                 )
-        myModel.insert_and_id("INSERT INTO 'agreement'(nodeInfoId, id) VALUES (?, ?)", [ nodeInfoId, result['agr_id']])
-        myModel.execute("INSERT INTO 'offer'(nodeInfoId, data) VALUES (?, ?)", [ nodeInfoId, json.dumps(result['offer']) ] )
+        myModel.execute("INSERT INTO 'agreement' (nodeInfoId, id) VALUES (?, ?)", ( nodeInfoId, result['agr_id'],))
+        myModel.execute("INSERT INTO extra.offer (nodeInfoId, data) VALUES (?, ?)", [ nodeInfoId, json.dumps(result['offer']) ] )
         return [ nodeInfoId ]
-    return closure
+    return on_accepted_result_closure
 
 
 
@@ -195,7 +205,6 @@ class Provisioner():
                         , 'agr_id': agr_id # may be used to lookup additional info in MySummaryLogger
                         , 'offer': context._agreement_details.provider_view.properties
                 }
-
                 task.accept_result(result_dict)
 
 
@@ -239,11 +248,16 @@ class Provisioner():
                     , max_workers=1
                     , timeout=self.__golem_timeout # arbitrary if self._wait_for_provider_timeout less
                     ):
-                    # condition result 1-lookup and add cost associated with the agreement id
                     result = completed_task.result
                     """ keys->'provider_name', 'json_file', 'provider_id', 'agr_id', 'offer' """
                     agr_id = result['agr_id']
-                    self.nodeInfoIds.extend(await self._result_callback(result))
+                    try:
+                        self.nodeInfoIds.extend(await self._result_callback(result))
+                    except Exception as e:
+                        tb=sys.exc_info()[2]
+                        print(f"\033[1mEXCEPTION:\033[0m\n")
+                        print(f"{traceback.print_exc()}")
+                        raise e
 
 
 
@@ -343,7 +357,7 @@ class spyuCTX:
         self.mySummaryLogger=MySummaryLogger(blacklist, self.myModel, self.whitelist)
 
         """ setup provisioner """
-        self.provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=self.mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(self.myModel))
+        self.provisioner = Provisioner(perRunBudget=perRunBudget, subnet_tag=args.subnet_tag, payment_driver=args.payment_driver, payment_network=args.payment_network, event_consumer=self.mySummaryLogger, strategy=filtered_strategy, package=package, result_callback=on_accepted_result(self.myModel, self.mySummaryLogger))
         print(f"waiting on {' '.join(whitelist)}")
         cancelled=False
         while not cancelled and len(whitelist) > 0:
@@ -361,7 +375,8 @@ class spyuCTX:
 
     """ get results """
     def get_results(self):
-        return self.mySummaryLogger.sum_invoices(), self.provisioner.nodeInfoIds, self.myModel
+        return self.mySummaryLogger, self.provisioner.nodeInfoIds, self.myModel
+        # return self.mySummaryLogger.sum_invoices(), self.provisioner.nodeInfoIds, self.myModel
 
 
 
@@ -390,7 +405,8 @@ if __name__ == "__main__":
     myModel =MyModel(str(dbfilepath))
     spyu_ctx=spyuCTX(myModel)
     utils.run_golem_example(spyu_ctx())
-    sumInvoices, nodeInfoIds, myModel = spyu_ctx.get_results()
+
+    mySummaryLogger, nodeInfoIds, myModel = spyu_ctx.get_results()
 
     if len(spyu_ctx.mySummaryLogger.skipped) > 0:
         msg="The following providers were skipped because they were unreachable or otherwise uncooperative:"
@@ -400,13 +416,13 @@ if __name__ == "__main__":
             print(skipped)
         print("-" * (len(msg)-1))
 
-    print("\nTotal glm spent:", sumInvoices)
+    print("\nTotal glm spent:", mySummaryLogger.sum_invoices())
 
     if isinstance(nodeInfoIds, list)  and len(nodeInfoIds) > 0:
         try:
-            on_run_conclusion(nodeInfoIds, myModel)
+            on_run_conclusion(mySummaryLogger, nodeInfoIds, myModel)
         except KeyboardInterrupt:
-            print("\nas you wish")
+            print("so be it")
     
 # save
 # future_result = script.run("/bin/sh", "-c", "/bin/echo [$(lscpu -J | jq -c),$(lscpu -JC | jq -c)] | sed s/\"field\"/\"k\"/g | sed s/\"data\"/\"v\"/g")
