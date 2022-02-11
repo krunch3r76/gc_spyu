@@ -7,7 +7,7 @@ For information on the global supercomputer that is Golem and how to run or engi
 
 For a listing of providers to inspect, visit https://stats.golem.network or invoke my gc__listoffers (https://github.com/krunch3r76/gc__listoffers)
 
-# installation
+# first installation
 ```bash
 $ git clone https://github.com/krunch3r76/gc_spyu.git
 $ cd gc_spyu
@@ -15,6 +15,13 @@ $ cd gc_spyu
 (gc_spyu)$ python -m venv myvenv
 (gc_spyu)$ . myvenv/bin/activate
 (myvenv)$ pip install -r requirements.txt
+```
+
+# upgrade installation removing current installation
+```bash
+(gc_spyu)$ git clean -dfx
+(gc_spyu)$ git clone https://github.com/krunch3r76/gc_spyu.git
+(gc_spyu)$ git checkout v0.0.6
 ```
 
 # DEMO
