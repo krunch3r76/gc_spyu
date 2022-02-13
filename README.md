@@ -48,6 +48,18 @@ https://user-images.githubusercontent.com/46289600/152745449-44dd2397-a4ea-41e0-
 ```bash
 (myvenv)$ GNPROVIDER=['0x3dd491','0xcef890','etam'] ./gc_spyu
 ```
+# TROUBLESHOOTING
+If the script fails to run and you see errors including:
+```bash
+ValueError: loop argument must agree with lock
+AttributeError: 'SmartQueue' object has no attribute '_new_items'
+```
+please use a version of Python < 3.10.
+```bash
+python3.9 -m myvenv
+# etc
+```
+
 # CREDITS
 utils.py from yapapi examples was utilized to start the Golem process and help manage exceptions. To see the original code, browse: https://github.com/golemfactory/yapapi/blob/master/examples/utils.py
 
