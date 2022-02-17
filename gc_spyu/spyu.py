@@ -208,6 +208,7 @@ class Provisioner():
         """ enter market """
         self.__timeStartLast = datetime.now() # probably don't need this as
         # an attribute
+
         async with Golem(
                 budget=self._perRunBudget
                 , subnet_tag=self._subnet_tag
@@ -219,12 +220,11 @@ class Provisioner():
                 ) as golem:
 
 
-            """ output parameters """
+            """ output parameters once """
             if self.__env_printed==False:
                 utils.print_env_info(golem)
                 self.__env_printed=True
 
-            """ send task """
             async for completed_task in golem.execute_tasks(
                     self._worker
                     , [Task(data={"results-dir": self._workdir})]
@@ -283,50 +283,6 @@ class spyuCTX:
         self.mySummaryLogger=None
         self.provisioner=None
 
-    def _augment_parser(self):
-        """ add to parser and parse CLI and return parser """
-        parser = utils.build_parser("spyu : a provider provider cpu inspector")
-        parser.add_argument('--spy', action="extend", nargs="+", type=str
-                , help="space delimited list of node/node names to fetch"
-                " information about")
-        parser.add_argument("--disable-logging", action="store_true",
-                help="disable yapapi logging")
-        return parser
-
-    def _check_args(self, args):
-        if args.spy == None and os.environ.get('GNPROVIDER', None) == None:
-            print("Usage: spyu --spy <space delimited list of node names>")
-            print("Example: spyu --spy q53 sycamore")
-            sys.exit(1)
-
-        """ populate whitelist from environment (filterms) """
-        if args.spy != None:
-            for element in args.spy:
-                if ',' in element:
-                    try:
-                        input("WARNING, commas seen in node names passed as"
-                        " arguments to --spy. If this was unintentional"
-                        " please quit otherwise press enter to proceed")
-                    except KeyboardInterrupt:
-                        print()
-                        sys.exit(0)
-                    else:
-                        break
-            whitelist=set(args.spy)
-            os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
-        else:
-            print("Using GNPROVIDER filterms environment variable to select"
-                   " nodes")
-            try:
-                input("press enter to proceed")
-            except KeyboardInterrupt:
-                print()
-                sys.exit(0)
-
-
-
-
-
     # --------- __call __ -------------
     async def __call__(self, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf")
             , maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37")
@@ -370,6 +326,51 @@ class spyuCTX:
             whitelist = blacklist.difference(whitelist)
             if len(whitelist) > 0:
                 print(f"still waiting on {' '.join(whitelist)}")
+
+
+
+
+    def _augment_parser(self):
+        """ add to parser and parse CLI and return parser """
+        parser = utils.build_parser("spyu : a provider provider cpu inspector")
+        parser.add_argument('--spy', action="extend", nargs="+", type=str
+                , help="space delimited list of node/node names to fetch"
+                " information about")
+        parser.add_argument("--disable-logging", action="store_true",
+                help="disable yapapi logging")
+        return parser
+
+    def _check_args(self, args):
+        if args.spy == None and os.environ.get('GNPROVIDER', None) == None:
+            print("Usage: spyu --spy <space delimited list of node names>")
+            print("Example: spyu --spy q53 sycamore")
+            sys.exit(1)
+
+        """ populate whitelist from environment (filterms) """
+        if args.spy != None:
+            for element in args.spy:
+                if ',' in element:
+                    try:
+                        input("WARNING, commas seen in node names passed as"
+                        " arguments to --spy. If this was unintentional"
+                        " please quit otherwise press enter to proceed")
+                    except KeyboardInterrupt:
+                        print()
+                        sys.exit(0)
+                    else:
+                        break
+            whitelist=set(args.spy)
+            os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
+        else:
+            print("Using GNPROVIDER filterms environment variable to select"
+                   " nodes")
+            try:
+                input("press enter to proceed")
+            except KeyboardInterrupt:
+                print()
+                sys.exit(0)
+
+
 
 
 
