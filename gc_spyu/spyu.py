@@ -50,7 +50,8 @@ def on_accepted_result(myModel :MyModel, mySummaryLogger: MySummaryLogger):
     async def on_accepted_result_closure(result):
         # result := { provider_name: , json_file: , provider_id: , agr_id: }
         """ gatheredIntel := { unixtime: , name: , addr: , model: }"""
-        debug.dlog(f"golem.execute_tasks has returned a Task object with result: {result}")
+        debug.dlog(f"golem.execute_tasks has returned a Task object"
+            f" with result: {result}", 11)
         with open(result['json_file'], "r") as json_fp:
             gatheredIntel = json.load(json_fp)
         providerId = myModel.fetch_field_value(f"SELECT providerId from provider WHERE addr = '{gatheredIntel['addr']}'")

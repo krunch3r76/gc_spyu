@@ -6,7 +6,7 @@ class MyModel():
         self.con = create_db(dbpath)
 
     def execute(self, *args):
-        debug.dlog(args)
+        debug.dlog(args, 11)
         recordset = None
         recordset = self.con.execute(*args)
         return recordset

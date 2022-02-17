@@ -17,7 +17,8 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         self._blacklist = blacklist_ref
         super().__init__()
         self.id_to_info=dict()
-        self._invoicesReceived = dict() # agr_id to invoice amount, TODO multiple invoices on single agr_id
+        self._invoicesReceived = dict() # agr_id to invoice amount, TODO
+					# multiple invoices on single agr_id
         self._last_node_name = ''
         self._last_node_address= ''
         self._last_timestamp=Decimal('0.0')
@@ -26,10 +27,12 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
 
         systmpdir_as_path = Path(tempfile.gettempdir())
 
-        self._internal_log = open(str(systmpdir_as_path/"summarylogger.log"), "w", buffering=1)
+        self._internal_log = open(str(systmpdir_as_path/"summarylogger.log"),
+			"w", buffering=1)
         self.interrupted = False
         self.skipped = []
-        self._agreementsConfirmed = [] # those for which a task was accepted implies an invoice
+        self._agreementsConfirmed = [] # those for which a task was accepted
+	# implies an invoice
 
     #----------  _blacklist_provider  --------------
     def _blacklist_provider(self, address, name, mark_skipped=False):
@@ -52,7 +55,8 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         """aggregate invoicesReceived"""
         sum_=Decimal('0.0')
         if len(self._invoicesReceived) > 0:
-            sum_ = Decimal(str(functools.reduce(lambda a,b: a+b, self._invoicesReceived.values())))
+            sum_ = Decimal(str(functools.reduce(lambda a,b: a+b,
+		    self._invoicesReceived.values())))
         return sum_
 
     def sum_invoices_on(self, addr):
@@ -81,9 +85,11 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
     #------------ sum_invoices_on ----------
     # TODO
     # def sum_invoices_multiset_on(self, addr):
-    #     """ return the sum of the invoices associated with a particular addr """
-    #     # there is more than one invoice usually if there are multiple script calls in a single worker
-    #     # list agreements (keys) with value 'address'=addr
+    #     """ return the sum of the invoices associated with a particular
+    #		addr """
+    #     there is more than one invoice usually if there are multiple
+    # 		script calls in a single worker
+    #     list agreements (keys) with value 'address'=addr
     #     debug.dlog(f"summing invoices on {addr}")
     #     agreements=[]
     #     for key, val in self.id_to_info.items():
@@ -91,7 +97,8 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
     #             agreements.append(key)
     #     sum_ = Decimal('0.0')
     #     for agreement in agreements:
-    #         sum_ += Decimal(str(self._invoicesReceived.get(agreement, Decimal("0.0"))))
+    #         sum_ += Decimal(str(self._invoicesReceived.get(agreement, 
+    #		Decimal("0.0"))))
     #     return sum_
 
     #------------ __del__    --------------
@@ -105,13 +112,16 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         # [ AgreementCreated ]
         if isinstance(event, yapapi.events.AgreementCreated):
             """
-            AgreementCreated: .job_id | .agr_id | .provider_id | .provider_info | .name | .subnet_tag
+            AgreementCreated: .job_id | .agr_id | .provider_id 
+	    	| .provider_info | .name | .subnet_tag
             """
             self.id_to_info[event.agr_id]={ 'name': event.provider_info.name
                     , 'address': event.provider_id
-                    , 'timestamp': str(Decimal(str(datetime.now().timestamp())))
+                    , 'timestamp': str(Decimal(
+			    str(datetime.now().timestamp())))
             }
-            debug.dlog(f"agreement created with agr_id: {event.agr_id} with provider named: {event.provider_info.name}")
+            debug.dlog(f"agreement created with agr_id: {event.agr_id} with"
+	     " provider named: {event.provider_info.name}")
         # [ TaskAccepted ]
         elif isinstance(event, yapapi.events.TaskAccepted):
             agr_id = event.result['agr_id']
@@ -119,55 +129,73 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
             name = self.id_to_info[agr_id]['name']
             self._agreementsConfirmed.append(agr_id)
 
-            debug.dlog(f"{event}\n--------blacklisting {name}@{address} because of task accepted")
+            # debug.dlog(f"{event}\n--------blacklisting {name}@{address} "
+	    	# " because of task accepted")
             self._blacklist_provider(address, name)
         # [ WorkerFinished ]
         elif isinstance(event, yapapi.events.WorkerFinished):
             if event.exc_info != None and len(event.exc_info) > 0:
-                debug.dlog(f"{event}\nWorker associated with agreement id {event.agr_id} finished but threw the exception {event.exc_info[1]}"
-                       "\nWorker name is {self.id_to_info['event.agr_id']}" )
+                debug.dlog(f"{event}\nWorker associated with agreement id"
+                    f" {event.agr_id} finished but threw the exception"
+                    f" {event.exc_info[1]}"
+                    f"\nWorker name is {self.id_to_info['event.agr_id']}" )
         # [ ActivityCreateFailed ]
         elif isinstance(event, yapapi.events.ActivityCreateFailed):
             if len(event.exc_info) > 0:
                 agr_id=event.agr_id
                 name = self.id_to_info[agr_id]['name']
                 address = self.id_to_info[agr_id]['address']
-                debug.dlog(f"{event}\nAn exception occurred preventing an activity/script from starting (provider name {name}@{address}).\n"
-                        f"{event.exc_info[1]}"
-                        )
+                debug.dlog(f"{event}\nAn exception occurred preventing an"
+                f" activity/script from starting (provider name "
+                f" {name}@{address}).\n"
+                f"{event.exc_info[1]}"
+                )
                 # self._blacklist_provider(address, name)
                 self.interrupted=True
         # [ InvoiceReceived ]
         elif isinstance(event, yapapi.events.InvoiceReceived):
-            assert event.agr_id not in self._invoicesReceived, "duplicate invoice!"
+            assert event.agr_id not in self._invoicesReceived, "duplicate" \
+                " invoice!"
             amountInvoiceAsDecimal = Decimal(event.amount)
             self._addInvoice(event.agr_id, amountInvoiceAsDecimal)
             # self._invoicesReceived[event.agr_id]=Decimal(event.amount)
-            debug.dlog(f"$$$$$$$$$$$$$$$$ received invoice for {self._invoicesReceived[event.agr_id]} $$$$$$$$$$$$")
-            records = self._myModel.execute(f"SELECT nodeInfoId FROM extra.agreement WHERE id = '{event.agr_id}'").fetchall()
+            debug.dlog(f"$$$$$$$$$$$$$$$$ received invoice for"
+            f" {self._invoicesReceived[event.agr_id]} $$$$$$$$$$$$")
+            records = self._myModel.execute(f"SELECT nodeInfoId FROM"
+            " extra.agreement WHERE id = '{event.agr_id}'").fetchall()
             if len(records) > 0:
                 nodeInfoId = records[0][0]
-                self._myModel.execute(f"INSERT INTO extra.cost (nodeInfoId, total) VALUES (?, ?)", [ nodeInfoId, amountInvoiceAsDecimal ])
+                self._myModel.execute(f"INSERT INTO extra.cost (nodeInfoId,"
+                " total) VALUES (?, ?)", [ nodeInfoId, \
+                        amountInvoiceAsDecimal ])
                 # self._myModel.execute(f"INSERT 
         # [ ExecutionInterrupted ]
         elif isinstance(event, yapapi.events.ExecutionInterrupted):
             if event.exc_info[1] and len(str(event.exc_info[1]))>0:
 
-                print(f"\033[1mThe worker logic was interrupted by an exception of name {event.exc_info[0].__name__} with these details: {event.exc_info[1]}\033[0m")
+                print(f"\033[1mThe worker logic was interrupted by"
+                f" an exception of name {event.exc_info[0].__name__} with"
+                f" these details: {event.exc_info[1]}\033[0m")
                 tb = event.exc_info[2]
                 traceback.print_tb(tb)
         # [ ComputationFinished ]
 
         elif isinstance(event, yapapi.events.ComputationFinished):
-            if event.exc_info != None and len(event.exc_info) > 0 and isinstance(event.exc_info, TimeoutError):
-                debug.dlog("?????????????????????????????????? computation timed out ?????????????????????????")
+            if event.exc_info != None and len(event.exc_info) > 0 and \
+                    isinstance(event.exc_info, TimeoutError):
+                debug.dlog("? computation timed out ?")
         elif isinstance(event, yapapi.events.AgreementTerminated):
             # eg
-            #AgreementTerminated(job_id='1', agr_id='5d3111a228c970317bb99312657a0cf88653e6bdfc27697ec0c6654bf0dcdb0a', reason={'message': 'Work cancelled', 'golem.requestor.code': 'Cancelled'})
+            #AgreementTerminated(job_id='1',
+            # agr_id=
+            # '5d3111a228c970317bb99312657a0cf88653e6bdfc27697ec0c6654bf
+            #0dcdb0a', reason={'message': 'Work cancelled',
+            # 'golem.requestor.code': 'Cancelled'})
             agr_id=event.agr_id
             name = self.id_to_info[agr_id]['name']
             address = self.id_to_info[agr_id]['address']
-            # print(f"{name}@{address} cancelled the work unexpectedly and will be skipped.")
+            # print(f"{name}@{address} cancelled the work unexpectedly"
+            # " and will be skipped.")
             if self.interrupted:
                 self._blacklist_provider(address, name, True)
                 self.interrupted=False
@@ -179,7 +207,8 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         diff = self._blacklist.difference(self.whitelist)
         if len(diff) == 0:
             # wait for all agreements to have invoices
-            # _agreementsConfirmed set should equal the set of keys on _invoicesReceived
+            # _agreementsConfirmed set should equal the set of keys on
+            # _invoicesReceived
             agreements_with_invoices = set(self._invoicesReceived.keys())
             agreementsConfirmed = set(self._agreementsConfirmed)
             if agreements_with_invoices == agreementsConfirmed:
