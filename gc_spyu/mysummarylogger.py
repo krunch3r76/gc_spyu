@@ -23,6 +23,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         self._last_node_address= ''
         self._last_timestamp=Decimal('0.0')
         self._myModel=myModel
+        self._jobid_to_agr=dict()
         debug.dlog("creating summarylogger.log file", 10)
 
         systmpdir_as_path = Path(tempfile.gettempdir())
@@ -32,6 +33,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         self.interrupted = False
         self.skipped = []
         self._agreementsConfirmed = [] # those for which a task was accepted
+        self._providersFailed=[] # {name:, address:}, ...
 	# implies an invoice
 
     #----------  _blacklist_provider  --------------
@@ -113,17 +115,20 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         if isinstance(event, yapapi.events.AgreementCreated):
             """
             AgreementCreated: .job_id | .agr_id | .provider_id 
-	    	| .provider_info | .name | .subnet_tag
+	    	| .provider_info || .name ||.subnet_tag
             """
             self.id_to_info[event.agr_id]={ 'name': event.provider_info.name
                     , 'address': event.provider_id
                     , 'timestamp': str(Decimal(
 			    str(datetime.now().timestamp())))
             }
+            self._jobid_to_agr[event.job_id]=event.agr_id
             debug.dlog(f"agreement created with agr_id: {event.agr_id} with"
-	     " provider named: {event.provider_info.name}")
-            self._blacklist_provider(address, name)
-
+	     f" provider named: {event.provider_info.name}")
+            self._blacklist_provider(event.provider_id,
+                    event.provider_info.name)
+        elif isinstance(self, yapapi.events.AgreementConfirmed):
+            pass
         # [ TaskAccepted ]
         elif isinstance(event, yapapi.events.TaskAccepted):
             agr_id = event.result['agr_id']
@@ -141,19 +146,20 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                     f" {event.agr_id} finished but threw the exception"
                     f" {event.exc_info[1]}"
                     f"\nWorker name is {self.id_to_info['event.agr_id']}" )
-        # [ ActivityCreateFailed ]
-        elif isinstance(event, yapapi.events.ActivityCreateFailed):
-            if len(event.exc_info) > 0:
-                agr_id=event.agr_id
-                name = self.id_to_info[agr_id]['name']
-                address = self.id_to_info[agr_id]['address']
-                debug.dlog(f"{event}\nAn exception occurred preventing an"
-                f" activity/script from starting (provider name "
-                f" {name}@{address}).\n"
-                f"{event.exc_info[1]}"
-                )
-                # self._blacklist_provider(address, name)
-                self.interrupted=True
+        # [ ComputationFinished ]
+        elif isinstance(event, yapapi.events.ComputationFinished):
+            if event.exc_info != None and len(event.exc_info) > 0 and \
+                    isinstance(event.exc_info[1], TimeoutError):
+                debug.dlog(f"? computation timed out ?\n{event}")
+            elif event.exc_info != None and len(event.exc_info) > 0 and \
+                    isinstance(event.exc_info[1],
+                            asyncio.exceptions.CancelledError):
+                agr_id=self._jobid_to_agr[event.job_id]
+                info=self.id_to_info[agr_id]
+                debug.dlog(f"computation cancelled for agreement"
+                        f" {agr_id}\n{info}"
+                        )
+                self._providersFailed.append(info)
         # [ InvoiceReceived ]
         elif isinstance(event, yapapi.events.InvoiceReceived):
             assert event.agr_id not in self._invoicesReceived, "duplicate" \
@@ -171,41 +177,45 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                 " total) VALUES (?, ?)", [ nodeInfoId, \
                         amountInvoiceAsDecimal ])
                 # self._myModel.execute(f"INSERT 
+        # [ ActivityCreateFailed ]
+        elif isinstance(event, yapapi.events.ActivityCreateFailed):
+            if len(event.exc_info) > 0:
+                agr_id=event.agr_id
+                name = self.id_to_info[agr_id]['name']
+                address = self.id_to_info[agr_id]['address']
+                debug.dlog(f"{event}\nAn exception occurred preventing an"
+                f" activity/script from starting (provider name "
+                f" {name}@{address}).\n"
+                f"{event.exc_info[1]}"
+                )
+                self.interrupted=True
         # [ ExecutionInterrupted ]
         elif isinstance(event, yapapi.events.ExecutionInterrupted):
             if event.exc_info[1] and len(str(event.exc_info[1]))>0:
-
                 print(f"\033[1mThe worker logic was interrupted by"
                 f" an exception of name {event.exc_info[0].__name__} with"
                 f" these details: {event.exc_info[1]}\033[0m")
                 tb = event.exc_info[2]
                 traceback.print_tb(tb)
-        # [ ComputationFinished ]
-
-        elif isinstance(event, yapapi.events.ComputationFinished):
-            if event.exc_info != None and len(event.exc_info) > 0 and \
-                    isinstance(event.exc_info, TimeoutError):
-                debug.dlog("? computation timed out ?")
+        # [ AgreementTerminated ]
         elif isinstance(event, yapapi.events.AgreementTerminated):
             # eg
-            #AgreementTerminated(job_id='1',
-            # agr_id=
-            # '5d3111a228c970317bb99312657a0cf88653e6bdfc27697ec0c6654bf
+            #AgreementTerminated(job_id='1', agr_id=
+            #'5d3111a228c970317bb99312657a0cf88653e6bdfc27697ec0c6654bf
             #0dcdb0a', reason={'message': 'Work cancelled',
             # 'golem.requestor.code': 'Cancelled'})
             agr_id=event.agr_id
             name = self.id_to_info[agr_id]['name']
             address = self.id_to_info[agr_id]['address']
-            # print(f"{name}@{address} cancelled the work unexpectedly"
-            # " and will be skipped.")
             if self.interrupted:
                 self._blacklist_provider(address, name, True)
                 self.interrupted=False
+
+
         self._internal_log.write(f"\n-----\n{event}\n-------\n")
 
         super().log(event)
 
-        
         diff = self._blacklist.difference(self.whitelist)
         if len(diff) == 0:
             # wait for all agreements to have invoices
