@@ -33,7 +33,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         self.interrupted = False
         self.skipped = []
         self._agreementsConfirmed = [] # those for which a task was accepted
-        self._providersFailed=[] # {name:, address:}, ...
+        self.providersFailed=[] # {name:, address:}, ...
 	# implies an invoice
 
     #----------  _blacklist_provider  --------------
@@ -159,7 +159,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                 debug.dlog(f"computation cancelled for agreement"
                         f" {agr_id}\n{info}"
                         )
-                self._providersFailed.append(info)
+                self.providersFailed.append(info)
         # [ InvoiceReceived ]
         elif isinstance(event, yapapi.events.InvoiceReceived):
             assert event.agr_id not in self._invoicesReceived, "duplicate" \

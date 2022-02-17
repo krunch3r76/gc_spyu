@@ -11,12 +11,12 @@ if __name__ == "__main__":
 
     mySummaryLogger, nodeInfoIds, myModel = spyu_ctx.get_results()
 
-    if len(spyu_ctx.mySummaryLogger.skipped) > 0:
+    if len(mySummaryLogger.providersFailed) > 0:
         msg="The following providers were skipped because they were unreachable or otherwise uncooperative:"
         print(f"\n{msg}")
         print("-" * (len(msg)-1))
-        for skipped in spyu_ctx.mySummaryLogger.skipped:
-            print(skipped)
+        for skipped in mySummaryLogger.providersFailed:
+            print(f"{skipped['name']}@{skipped['address']}")
         print("-" * (len(msg)-1))
 
     print("\n\033[0;32mTotal glm spent from all engine runs: \033[1m" + str(mySummaryLogger.sum_invoices()) + "\033[0m")

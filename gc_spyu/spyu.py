@@ -271,6 +271,7 @@ class Provisioner():
 #           spyuCTX                 #
 #####################################
 class spyuCTX:
+    # -+-+-+-+ __init__ -+-+-+-+-+
     def __init__(self):
         datadir = get_datadir() / "gc_spyu"
         try:
@@ -283,7 +284,8 @@ class spyuCTX:
         self.mySummaryLogger=None
         self.provisioner=None
 
-    # --------- __call __ -------------
+
+    # +++++++++ __call __ +++++++++++++
     async def __call__(self, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf")
             , maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37")
             , perRunBudget=Decimal("0.1"), whitelist=None):
@@ -292,6 +294,7 @@ class spyuCTX:
         self._check_args(args)
         if not args.disable_logging:
             enable_default_logger(log_file=args.log_file)
+
         whitelist = set(get_gnprovider_as_list())
         self.whitelist = whitelist
         blacklist=luserset()
@@ -326,6 +329,17 @@ class spyuCTX:
             whitelist = blacklist.difference(whitelist)
             if len(whitelist) > 0:
                 print(f"still waiting on {' '.join(whitelist)}")
+
+
+
+
+
+    # +++++++++++ get_results ++++++++++++++
+    def get_results(self):
+        return self.mySummaryLogger, self.provisioner.nodeInfoIds, \
+                self.myModel
+
+
 
 
 
@@ -377,12 +391,6 @@ class spyuCTX:
 
 
 
-
-
-    """ get results """
-    def get_results(self):
-        return self.mySummaryLogger, self.provisioner.nodeInfoIds, \
-                self.myModel
 
 
 
