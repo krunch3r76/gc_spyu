@@ -122,6 +122,8 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
             }
             debug.dlog(f"agreement created with agr_id: {event.agr_id} with"
 	     " provider named: {event.provider_info.name}")
+            self._blacklist_provider(address, name)
+
         # [ TaskAccepted ]
         elif isinstance(event, yapapi.events.TaskAccepted):
             agr_id = event.result['agr_id']
@@ -131,7 +133,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
 
             # debug.dlog(f"{event}\n--------blacklisting {name}@{address} "
 	    	# " because of task accepted")
-            self._blacklist_provider(address, name)
+            # self._blacklist_provider(address, name)
         # [ WorkerFinished ]
         elif isinstance(event, yapapi.events.WorkerFinished):
             if event.exc_info != None and len(event.exc_info) > 0:
