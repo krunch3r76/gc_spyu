@@ -22,7 +22,6 @@ def console_interface(mySummaryLogger, nodeInfoIds, myModel):
         f" JOIN extra.nodeInfo" \
         f" NATURAL JOIN extra.cost" \
         f" NATURAL JOIN extra.offer" 
-
     if len(nodeInfoIds) > 1:
         ss+=f" WHERE nodeInfoId IN {tuple(nodeInfoIds)}"
     else:

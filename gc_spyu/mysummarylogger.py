@@ -148,18 +148,27 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                     f"\nWorker name is {self.id_to_info['event.agr_id']}" )
         # [ ComputationFinished ]
         elif isinstance(event, yapapi.events.ComputationFinished):
-            if event.exc_info != None and len(event.exc_info) > 0 and \
-                    isinstance(event.exc_info[1], TimeoutError):
-                debug.dlog(f"? computation timed out ?\n{event}")
-            elif event.exc_info != None and len(event.exc_info) > 0 and \
-                    isinstance(event.exc_info[1],
-                            asyncio.exceptions.CancelledError):
-                agr_id=self._jobid_to_agr[event.job_id]
-                info=self.id_to_info[agr_id]
-                debug.dlog(f"computation cancelled for agreement"
-                        f" {agr_id}\n{info}"
-                        )
-                self.providersFailed.append(info)
+            debug.dlog(event)
+            if event.exc_info != None:
+                try:
+                    agr_id=self._jobid_to_agr[event.job_id]
+                    info=self.id_to_info[agr_id]
+                    self.providersFailed.append(info)
+                except:
+                    agr_id='unknown agreement'
+                    info='no info'
+                if event.exc_info != None and len(event.exc_info) > 0 and \
+                        isinstance(event.exc_info[1], TimeoutError):
+
+                    debug.dlog(f"? computation timed out ?\n{event}\n"
+                            f" {agr_id}\n{info}"
+                            )
+                elif event.exc_info != None and len(event.exc_info) > 0 and \
+                        isinstance(event.exc_info[1],
+                                asyncio.exceptions.CancelledError):
+                    debug.dlog(f"computation cancelled for agreement"
+                            f" {agr_id}\n{info}"
+                            )
         # [ InvoiceReceived ]
         elif isinstance(event, yapapi.events.InvoiceReceived):
             assert event.agr_id not in self._invoicesReceived, "duplicate" \
