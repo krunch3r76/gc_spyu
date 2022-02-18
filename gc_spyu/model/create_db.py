@@ -28,8 +28,9 @@ def create_db(dbpath, isolation_level=None):
     sqlite3.register_converter("DECIMAL", convert_decimal)
 
     """connect"""
-    con = sqlite3.connect(dbpath, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES, isolation_level=isolation_level)
-#    con_extra = sqlite3.connect(extrabpath, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES, isolation_level=isolation_level)
+    con = sqlite3.connect(dbpath,
+            detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
+            , isolation_level=isolation_level)
     con.execute(f"ATTACH '{extradbpath}' AS extra")
     con.execute("PRAGMA foreign_keys=ON")
 
@@ -41,6 +42,21 @@ def create_db(dbpath, isolation_level=None):
             )
 
     con.execute("CREATE TABLE IF NOT EXISTS nodeInfo ("
+            "nodeInfoId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
+            ", providerId REFERENCES provider(providerId)"
+            ", modelname TEXT DEFAULT ''"
+            ", unixtime DECIMAL NOT NULL"
+            ", nodename TEXT NOT NULL"
+            ")"
+            )
+
+    con.execute("CREATE TABLE IF NOT EXISTS extra.provider ("
+            "providerId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
+            ", addr TEXT NOT NULL UNIQUE"
+            ")"
+            )
+
+    con.execute("CREATE TABLE IF NOT EXISTS extra.nodeInfo ("
             "nodeInfoId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"
             ", providerId REFERENCES provider(providerId)"
             ", modelname TEXT DEFAULT ''"

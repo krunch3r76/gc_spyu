@@ -18,6 +18,7 @@ import tempfile
 import pathlib
 import os
 import traceback
+from collections import namedtuple
 
 from yapapi import Golem, Task, WorkContext
 from yapapi.log import enable_default_logger
@@ -40,6 +41,74 @@ g_source_dir=pathlib.Path(__file__).resolve().parent
 
 
 
+def check_for_provider_change(myModel, gatheredIntel, lastNodeInfoDetails):
+    """ compare current and last provider details and report whether 
+    (name) changed """
+    return gatheredIntel['name'] != lastNodeInfoDetails.nodename
+
+
+
+def _retrieve_last_nodeInfo_record(myModel, gatheredIntel, providerId):
+    """ look up the most recent entry for a provider and return named
+    tuple"""
+    ss = "SELECT nodeInfoId, providerId" \
+            + ", modelname, unixtime, nodename, MAX(unixtime)" \
+            + f" from nodeInfo WHERE providerId = {providerId}"
+    debug.dlog(ss)
+    recordset = myModel.execute(ss).fetchall()
+    NodeInfoNT = namedtuple('NodeInfoNT', ['nodeInfoId', 'providerId'
+        , 'modelname', 'unixtime', 'nodename'])
+    debug.dlog(recordset[0][:-1])
+    return NodeInfoNT(*recordset[0][:-1])
+
+
+
+
+def _lookup_provider_ids(myModel, addr):
+    """ look up and return providerIds to addr """
+    ss = "SELECT providerId FROM {table} WHERE addr = '{addr}'"
+    mainProviderId = myModel.fetch_field_value(ss.format(table="provider"
+        , addr=addr))
+    extraProviderId = myModel.fetch_field_value(ss.format(
+        table="extra.provider", addr=addr))
+    return (mainProviderId, extraProviderId)
+
+# analysis: always insert nodeinfo and details into extra
+# first look for existing providerIds and add if needed
+
+
+
+
+
+def _add_nodeInfo_details(myModel, gatheredIntel, providerId
+        ,table=''):
+    """ updates db with new node info and returns nodeInfoId """
+    info = myModel.execute_and_id(f"INSERT INTO {table}nodeInfo"
+        f"(providerId, modelname, unixtime, nodename)"
+            " VALUES(?, ?, ?, ?)"
+            , [ providerId, gatheredIntel['model']
+                , gatheredIntel['unixtime'], gatheredIntel['name'] ]
+            )[0]
+    return info # id
+
+def _update_extra(myModel, gatheredIntel, extraProviderId, agr_id, offer):
+    """ ( add extraProviderId ), details -> extraProviderId """
+    if extraProviderId == None:
+        extraProviderId = myModel.execute_and_id(
+            "INSERT INTO extra.provider (addr) VALUES (?)"
+            , [ gatheredIntel['addr'] ] )[0]
+
+    nodeInfoId = _add_nodeInfo_details(myModel, gatheredIntel, extraProviderId,
+            'extra.')
+
+    myModel.execute("INSERT INTO extra.agreement (nodeInfoId, id) VALUES"
+            " (?, ?)", ( nodeInfoId, agr_id,))
+
+    myModel.execute("INSERT INTO extra.offer (nodeInfoId, data) VALUES"
+            " (?, ?)", [ nodeInfoId, json.dumps(offer) ] )
+
+    return nodeInfoId
+
 
 
 
@@ -50,27 +119,45 @@ def on_accepted_result(myModel :MyModel, mySummaryLogger: MySummaryLogger):
     async def on_accepted_result_closure(result):
         # result := { provider_name: , json_file: , provider_id: , agr_id: }
         """ gatheredIntel := { unixtime: , name: , addr: , model: }"""
-        debug.dlog(f"golem.execute_tasks has returned a Task object"
-            f" with result: {result}", 11)
+
+        # debug.dlog(f"golem.execute_tasks has returned a Task object"
+        #         f" with result: {result}", 11)
+
         with open(result['json_file'], "r") as json_fp:
             gatheredIntel = json.load(json_fp)
-        providerId = myModel.fetch_field_value(f"SELECT providerId from"
-        f" provider WHERE addr = '{gatheredIntel['addr']}'")
-        if providerId == None:
-            providerId = myModel.insert_and_id("INSERT INTO 'provider'(addr)"
-            f" VALUES (?)", [ gatheredIntel['addr'] ] )
 
-        nodeInfoId = myModel.insert_and_id("INSERT INTO 'nodeInfo'"
-            f"(providerId, modelname, unixtime, nodename)"
-                " VALUES(?, ?, ?, ?)"
-                , [ providerId, gatheredIntel['model']
-                    , gatheredIntel['unixtime'], gatheredIntel['name'] ]
+        unixtime, name, addr, model = gatheredIntel['unixtime'] \
+                , gatheredIntel['name'], gatheredIntel['addr'] \
+                , gatheredIntel['model']
+
+        providerId, extraProviderId = _lookup_provider_ids(myModel, addr)
+
+        extraNodeInfoId = _update_extra(myModel, gatheredIntel, extraProviderId
+                , result['agr_id'], json.dumps(result['offer'])
                 )
-        myModel.execute("INSERT INTO 'agreement' (nodeInfoId, id) VALUES"
-            " (?, ?)", ( nodeInfoId, result['agr_id'],))
-        myModel.execute("INSERT INTO extra.offer (nodeInfoId, data) VALUES"
-            " (?, ?)", [ nodeInfoId, json.dumps(result['offer']) ] )
-        return [ nodeInfoId ]
+
+        nodeInfoId = None # shall refer to a previous record
+        if providerId == None:
+            providerId = myModel.execute_and_id(
+                    "INSERT INTO provider (addr) VALUES (?)", [addr])[0]
+
+            _add_nodeInfo_details(myModel, gatheredIntel
+                    , providerId, '')
+        else:
+            lastNodeInfoDetails = _retrieve_last_nodeInfo_record(myModel
+                    , gatheredIntel, providerId)
+
+            if check_for_provider_change(myModel, gatheredIntel
+                    , lastNodeInfoDetails):
+                debug.dlog("PROVIDER CHANGE")
+            else:
+               # update timestamp
+                myModel.execute("UPDATE nodeInfo SET unixtime"
+                        f" = {str(unixtime)} WHERE nodeInfoId"
+                        f" = {str(lastNodeInfoDetails.unixtime)}")
+
+        return [ extraNodeInfoId ]
+
     return on_accepted_result_closure
 
 
@@ -110,6 +197,8 @@ def on_accepted_result(myModel :MyModel, mySummaryLogger: MySummaryLogger):
 
 class Provisioner():
     """setup context and interface for launching a Golem instance"""
+
+    # +-+-+-+-+-+-+ __init__ -+-+-+-+-+-+-+
     def __init__(self, perRunBudget, subnet_tag, payment_driver
             , payment_network, event_consumer, strategy, package
             , result_callback, golem_timeout=timedelta(minutes=6)):
@@ -135,6 +224,59 @@ class Provisioner():
 
 
 
+
+
+    # ++++++++++++ __call__ +++++++++++++
+    async def __call__(self):
+        """ enter market """
+        self.__timeStartLast = datetime.now() # probably don't need this as
+        # an attribute
+
+        async with Golem(
+                budget=self._perRunBudget
+                , subnet_tag=self._subnet_tag
+                , payment_driver=self._payment_driver
+                , payment_network=self._payment_network
+                , event_consumer=self._event_consumer.log
+                , strategy=self._strategy
+                , stream_output=False
+                ) as golem:
+
+
+            """ output parameters once """
+            if self.__env_printed==False:
+                utils.print_env_info(golem)
+                self.__env_printed=True
+
+            async for completed_task in golem.execute_tasks(
+                    self._worker
+                    , [Task(data={"results-dir": self._workdir})]
+                    , payload=self._package
+                    , max_workers=1
+                    , timeout=self.__golem_timeout # arbitrary if
+                        # self._wait_for_provider_timeout less
+                    ):
+                    result = completed_task.result
+                    """ keys->'provider_name', 'json_file', 'provider_id',
+                        'agr_id', 'offer' """
+                    agr_id = result['agr_id']
+                    try:
+                        self.nodeInfoIds.extend(
+                                await self._result_callback(result)
+                                )
+                    except Exception as e:
+                        tb=sys.exc_info()[2]
+                        print(f"\033[1mEXCEPTION:\033[0m\n")
+                        print(f"{traceback.print_exc()}")
+                        raise e
+
+
+
+        if (datetime.now() - self.__timeStartLast) \
+                > ( self.__golem_timeout - timedelta(minutes=1) ):
+            return True
+        else:
+            return False
 
 
 
@@ -202,58 +344,6 @@ class Provisioner():
 
 
 
-
-
-    async def __call__(self):
-        """ enter market """
-        self.__timeStartLast = datetime.now() # probably don't need this as
-        # an attribute
-
-        async with Golem(
-                budget=self._perRunBudget
-                , subnet_tag=self._subnet_tag
-                , payment_driver=self._payment_driver
-                , payment_network=self._payment_network
-                , event_consumer=self._event_consumer.log
-                , strategy=self._strategy
-                , stream_output=False
-                ) as golem:
-
-
-            """ output parameters once """
-            if self.__env_printed==False:
-                utils.print_env_info(golem)
-                self.__env_printed=True
-
-            async for completed_task in golem.execute_tasks(
-                    self._worker
-                    , [Task(data={"results-dir": self._workdir})]
-                    , payload=self._package
-                    , max_workers=1
-                    , timeout=self.__golem_timeout # arbitrary if
-                        # self._wait_for_provider_timeout less
-                    ):
-                    result = completed_task.result
-                    """ keys->'provider_name', 'json_file', 'provider_id',
-                        'agr_id', 'offer' """
-                    agr_id = result['agr_id']
-                    try:
-                        self.nodeInfoIds.extend(
-                                await self._result_callback(result)
-                                )
-                    except Exception as e:
-                        tb=sys.exc_info()[2]
-                        print(f"\033[1mEXCEPTION:\033[0m\n")
-                        print(f"{traceback.print_exc()}")
-                        raise e
-
-
-
-        if (datetime.now() - self.__timeStartLast) \
-                > ( self.__golem_timeout - timedelta(minutes=1) ):
-            return True
-        else:
-            return False
 
 
 

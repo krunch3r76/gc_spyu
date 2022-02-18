@@ -7,16 +7,19 @@ def console_interface(mySummaryLogger, nodeInfoIds, myModel):
 
     # update cost table now that invoices have been finalized
     for nodeInfoId in nodeInfoIds:
-        # agr_id = myModel.fetch_field_value("SELECT id FROM agreement NATURAL JOIN nodeInfo")
-        addr = myModel.fetch_field_value(f"SELECT addr FROM provider NATURAL JOIN nodeInfo WHERE nodeInfoId = {nodeInfoId}")
+        addr = myModel.fetch_field_value(f"SELECT addr FROM extra.provider"\
+                + " NATURAL JOIN extra.nodeInfo" \
+                + f" WHERE nodeInfoId = {nodeInfoId}")
         debug.dlog(f"updating cost for {addr}")
         myModel.execute("INSERT INTO extra.cost (nodeInfoId, total) VALUES (?, ?)" 
                 , [ nodeInfoId, mySummaryLogger.sum_invoices_on(addr) ]
                 )
 
-    ss=f"SELECT addr, json_extract(data, '$.\"golem.node.id.name\"') AS nameProvider, modelname, total" \
-        f" FROM (select addr FROM provider NATURAL JOIN nodeInfo) AS addr" \
-        f" JOIN nodeInfo" \
+    ss=f"SELECT addr, json_extract(data, '$.\"golem.node.id.name\"') AS" \
+        " nameProvider, modelname, total" \
+        f" FROM (select addr FROM extra.provider NATURAL JOIN extra.nodeInfo)" \
+        " AS addr" \
+        f" JOIN extra.nodeInfo" \
         f" NATURAL JOIN extra.cost" \
         f" NATURAL JOIN extra.offer" 
 
