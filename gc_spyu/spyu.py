@@ -259,7 +259,8 @@ class spyuCTX:
                 , result_callback=on_accepted_result(self.myModel
                     , self.mySummaryLogger)
                 )
-        print(f"waiting on {' '.join(whitelist)}")
+        boldlist = ', '.join(map(lambda s: f'\033[1m{s}\033[0m', whitelist))
+        print(f"waiting on {boldlist}") 
         cancelled=False
         while not cancelled and len(whitelist) > 0:
             cancelled = await self.provisioner()

@@ -9,7 +9,7 @@ NodeInfoNT = namedtuple('NodeInfoNT', ['nodeInfoId', 'providerId'
     , 'modelname', 'unixtime', 'nodename']) # unixtime is Decimal
 
 
-
+# _________ _add_nodeInfo _______________
 def _add_nodeInfo(myModel, providerId, intel_d, attached_prefix):
     if attached_prefix != '':
         assert '.' in attached_prefix, "malformed attached db prefix"
@@ -22,6 +22,7 @@ def _add_nodeInfo(myModel, providerId, intel_d, attached_prefix):
             ])[0]
     return inserted_nodeInfoId
 
+# ____________ _add_provider ____________
 def _add_provider(myModel, addr, attached_prefix=''):
     if attached_prefix != '':
         assert '.' in attached_prefix, "malformed attached db prefix"
@@ -30,7 +31,7 @@ def _add_provider(myModel, addr, attached_prefix=''):
             + "VALUES (?)", [ addr ])[0]
     return providerId
 
-
+# _____________ _lookup_provider_id ___________
 def _lookup_provider_id(myModel, addr, attached_prefix=''):
     if attached_prefix != '':
         assert '.' in attached_prefix, "malformed attached db prefix"
@@ -42,15 +43,19 @@ def _lookup_provider_id(myModel, addr, attached_prefix=''):
     return rv_providerId
 
 
+
+
+
+
 ######## BEGIN update_main_db ################
-
-
 def update_main_db(myModel, intel_d):
 
+    # _-_-_-_- __update_nodeInfotime _-_-_-_-
     def __update_nodeInfo_time(nodeInfoId, unixtime_str):
         myModel.execute("UPDATE nodeInfo SET unixtime = (?) WHERE" \
                 + f" nodeInfoId = {nodeInfoId}", [Decimal(unixtime_str)])
 
+    # _-_-_-_- __lookup_last_nodeinfo_record _-_-_-_-
     def __lookup_last_nodeinfo_record(providerId) ->NodeInfoNT:
         rv_nodeInfoRecord = None
         nodeInfoRows = myModel.execute("SELECT nodeInfoId, providerId" \
@@ -59,20 +64,15 @@ def update_main_db(myModel, intel_d):
                 + f" providerId = {providerId} GROUP BY " \
                 + "providerId").fetchall()
         
-        debug.dlog(f"type nodeInfoRows[0]: {type(nodeInfoRows[0])}" \
-                + f"\ncontents: {nodeInfoRows[0]}" \
-                + f"\ncontents of nodeInfoRows[0][:-1]: {nodeInfoRows[0][:-1]}" \
-                + f"\ncontents of *nodeInfoRows[0][:-1]"
-#                + f"\ncontents of *nodeInfoRows[0][:-1]: {*nodeInfoRows[0][:-1]}"
-                ) 
         if len(nodeInfoRows) != 0:
             rv_nodeInfoRecord = NodeInfoNT(*nodeInfoRows[0][:-1])
 
-        debug.dlog(f"timestamp for {rv_nodeInfoRecord.nodename}: {rv_nodeInfoRecord.unixtime}")
+        debug.dlog(f"timestamp for {rv_nodeInfoRecord.nodename}:"
+                f" {rv_nodeInfoRecord.unixtime}")
         debug.dlog(f"returning: {rv_nodeInfoRecord}")
         return rv_nodeInfoRecord
 
-# --------------------start------------------------------- #
+# --------------------start update_maind_db--------------- #
     prefixAttached=''
 
     providerId = _lookup_provider_id(myModel, intel_d['addr'], prefixAttached)
@@ -82,22 +82,25 @@ def update_main_db(myModel, intel_d):
     else:
         nodeInfoRec = __lookup_last_nodeinfo_record(providerId)
         if nodeInfoRec != None:
-            if intel_d['name'] == nodeInfoRec.nodename:
-                __update_nodeInfo_time(nodeInfoRec.nodeInfoId
-                        , intel_d['unixtime'])
+            if not ( intel_d['name'] == nodeInfoRec.nodename and \
+                    intel_d['model'] == nodeInfoRec.modelname ):
+                _add_nodeInfo(myModel, providerId, intel_d, prefixAttached)
         else:
-            _add_nodeInfo(myModel, providerId, intel_d, prefixAttached)
+            __update_nodeInfo_time(nodeInfoRec.nodeInfoId
+                        , intel_d['unixtime'])
 
 ########### END update_main_db ###################
         
 
 ########## BEGIN update_extra_db ###############
 def update_extra_db(myModel, intel_d, offer: str, agr_id):
+    # _-_-_-_- __add_offer _-_-_-_-
     def __add_offer(nodeInfoId, offer):    
         myModel.execute(f"INSERT INTO {prefixAttached}offer(nodeInfoId," \
                 + "data) VALUES (?, ?)",
                 [ nodeInfoId, offer ] )
 
+    # _-_-_-_- __add_agreement _-_-_-_-
     def __add_agreement(nodeInfoId, agr_id):
         myModel.execute(f"INSERT INTO {prefixAttached}agreement(nodeInfoId," \
                 + "id) VALUES (?, ?)",
@@ -113,6 +116,8 @@ def update_extra_db(myModel, intel_d, offer: str, agr_id):
     __add_offer(nodeInfoId, offer)
     __add_agreement(nodeInfoId, agr_id)
     return nodeInfoId
+
+
 
 ######## on_accepted_result ########
 def on_accepted_result(myModel, mySummaryLogger):
@@ -130,8 +135,8 @@ def on_accepted_result(myModel, mySummaryLogger):
         update_main_db(myModel, gatheredIntel)
         myModel.commit()
 
-        extraNodeInfoId = update_extra_db(myModel, gatheredIntel, json.dumps(result['offer'])
-                , result['agr_id'])
+        extraNodeInfoId = update_extra_db(myModel, gatheredIntel,
+                json.dumps(result['offer']) , result['agr_id'])
         myModel.commit()
         return [ extraNodeInfoId ]
 
