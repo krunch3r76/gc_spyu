@@ -21,7 +21,7 @@ $ cd gc_spyu
 ```bash
 (gc_spyu)$ git clean -dfx
 (gc_spyu)$ git pull
-(gc_spyu)$ git checkout v0.0.7
+(gc_spyu)$ git checkout v0.0.8
 ```
 
 # DEMO
