@@ -17,7 +17,16 @@ $ cd gc_spyu
 (myvenv)$ pip install -r requirements.txt
 ```
 
-# upgrade installation removing current installation
+# check for new / latest release tag
+```bash
+(gc_spyu)$ git fetch
+From github.com:krunch3r76/gc_spyu
+   d87b579..01f72be  master     -> origin/master
+ * [new tag]         v0.0.8     -> v0.0.8
+ * [new tag]         v0.0.9     -> v0.0.9
+```
+
+# upgrade installation to latest tag, removing current installation
 ```bash
 (gc_spyu)$ git clean -dfx
 (gc_spyu)$ git pull
