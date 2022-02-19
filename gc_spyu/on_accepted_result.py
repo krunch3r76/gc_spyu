@@ -85,9 +85,9 @@ def update_main_db(myModel, intel_d):
             if not ( intel_d['name'] == nodeInfoRec.nodename and \
                     intel_d['model'] == nodeInfoRec.modelname ):
                 _add_nodeInfo(myModel, providerId, intel_d, prefixAttached)
-        else:
-            __update_nodeInfo_time(nodeInfoRec.nodeInfoId
-                        , intel_d['unixtime'])
+            else:
+                __update_nodeInfo_time(nodeInfoRec.nodeInfoId
+                            , intel_d['unixtime'])
 
 ########### END update_main_db ###################
         
