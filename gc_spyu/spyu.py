@@ -42,36 +42,6 @@ g_source_dir=pathlib.Path(__file__).resolve().parent
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class Provisioner():
     """setup context and interface for launching a Golem instance"""
 
