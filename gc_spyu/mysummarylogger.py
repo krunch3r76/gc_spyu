@@ -80,7 +80,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
             if invoice_total == Decimal('0.0'):
                 error = True
         if error:
-            raise Exception("could not lookup cost")
+            raise Exception("could not sum invoices on addr")
 
         return invoice_total
 

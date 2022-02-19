@@ -36,3 +36,5 @@ class MyModel():
         return field_value
 
 
+    def commit(self):
+        self.con.commit()

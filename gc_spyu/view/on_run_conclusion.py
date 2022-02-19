@@ -11,9 +11,14 @@ def console_interface(mySummaryLogger, nodeInfoIds, myModel):
                 + " NATURAL JOIN extra.nodeInfo" \
                 + f" WHERE nodeInfoId = {nodeInfoId}")
         debug.dlog(f"updating cost for {addr}")
-        myModel.execute("INSERT INTO extra.cost (nodeInfoId, total) VALUES (?, ?)" 
-                , [ nodeInfoId, mySummaryLogger.sum_invoices_on(addr) ]
-                )
+        try:
+            myModel.execute("INSERT INTO extra.cost (nodeInfoId, total) VALUES (?, ?)" 
+                    , [ nodeInfoId, mySummaryLogger.sum_invoices_on(addr) ]
+                    )
+        except:
+            pass # interruptions may result in no cost info.. TODO REVIEW
+
+        myModel.commit()
 
     ss=f"SELECT addr, json_extract(data, '$.\"golem.node.id.name\"') AS" \
         " nameProvider, modelname, total" \
@@ -22,10 +27,7 @@ def console_interface(mySummaryLogger, nodeInfoIds, myModel):
         f" JOIN extra.nodeInfo" \
         f" NATURAL JOIN extra.cost" \
         f" NATURAL JOIN extra.offer" 
-    if len(nodeInfoIds) > 1:
-        ss+=f" WHERE nodeInfoId IN {tuple(nodeInfoIds)}"
-    else:
-        ss+=f" WHERE nodeInfoId IN ( {nodeInfoIds[0]} )"
+    ss+=f" WHERE nodeInfoId IN ( {','.join(map(str,nodeInfoIds))} )"
     ss+=f" GROUP BY nodeInfoId"
 
     debug.dlog(ss)

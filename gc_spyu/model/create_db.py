@@ -2,7 +2,54 @@ import sqlite3
 from decimal import Decimal
 import debug
 import sys
-import pathlib
+import pathlib, os, shutil
+from pathlib import Path
+import tempfile
+schema_version=4
+
+
+
+def _ensure_compatibility(con, dbpath: str, extradbpath: str):
+    rv_compatible = True
+    dbpath_as_path = Path(dbpath)
+    extradbpath_as_path = Path(extradbpath)
+
+    # check schema
+    try:
+        recordset = con.execute("SELECT version FROM schema_version").fetchall()
+        row=recordset[0]
+        schemaCurrent=row[0]
+    except: # elaborate
+        schemaCurrent=0
+
+    tempdirname=tempfile.gettempdir()
+    tempfilepath=Path(tempdirname) / "gc_spyu_db.bak"
+
+    if schemaCurrent < schema_version:
+        rv_compatible=False
+        print("Uh oh, the version of gc_spy you are invoking is incompatible with an old"
+        " database and cannot be upgraded.")
+        print(f"I am moving the old database to your temporary directory to"
+            f": {tempfilepath}"
+                " as it is no longer relevant!")
+        input("press enter to acknowledge")
+        shutil.move(dbpath, str(tempfilepath))
+        os.unlink(extradbpath)
+
+    return rv_compatible
+
+
+
+
+def _connect(dbpath, extradbpath, isolation_level):
+    con = sqlite3.connect(dbpath,
+            detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
+            , isolation_level=isolation_level)
+    con.execute(f"ATTACH '{extradbpath}' AS extra")
+    con.execute("PRAGMA foreign_keys=ON")
+    return con
+
+
 
 """create_db
 inputs                          process                     output
@@ -11,10 +58,11 @@ inputs                          process                     output
                                 connect
                                 create
 """
-def create_db(dbpath, isolation_level=None):
+def create_db(dbpath, isolation_level="DEFERRED"):
     model_working_dir=pathlib.Path(__file__).resolve().parent
     extradb_file=model_working_dir/"extra.db"
     extradbpath=str(extradb_file)
+
 
     """setup adapters"""
     def adapt_decimal(d):
@@ -28,11 +76,13 @@ def create_db(dbpath, isolation_level=None):
     sqlite3.register_converter("DECIMAL", convert_decimal)
 
     """connect"""
-    con = sqlite3.connect(dbpath,
-            detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
-            , isolation_level=isolation_level)
-    con.execute(f"ATTACH '{extradbpath}' AS extra")
-    con.execute("PRAGMA foreign_keys=ON")
+    con = _connect(dbpath, extradbpath, isolation_level)
+
+
+    if not _ensure_compatibility(con, dbpath, extradbpath):
+        con = _connect(dbpath, extradbpath, isolation_level) # reconnect after removal
+
+
 
     """create"""
     con.execute("CREATE TABLE IF NOT EXISTS provider ("
@@ -86,20 +136,7 @@ def create_db(dbpath, isolation_level=None):
             ")"
             )
 
-    try:
-        r = con.execute("SELECT COUNT(*) FROM scchema_version").fetchall()
-    except sqlite3.OperationalError as e:
-        if "no such table" in str(e):
-            TOPOVERSION=False
-    else:
-        TOPOVERSION=True
 
-    if TOPOVERSION:
-        print("Uh oh, the version of gc_spy you are invoking is not compatible with an old database.")
-        print(f"Please delete (or backup and delete) the file {dbpath} and rerun.")
-        sys.exit(1)
-
-    schema_version=3
 
     ss = "CREATE TABLE IF NOT EXISTS schema_version" \
         "(" + f"version INT NOT NULL" + ")" 
@@ -112,13 +149,6 @@ def create_db(dbpath, isolation_level=None):
     if len(recordset) == 0:
         ss = "INSERT INTO  schema_version (version) VALUES (?)"
         con.execute(ss, (schema_version,) )
-    else:
-        row=recordset[0]
-        schemaCurrent=row[0]
-        if schemaCurrent < 3:
-            print("Uh oh, the version of gc_spy you are invoking is not compatible with an old database.")
-            print(f"Please delete (or backup and delete) the file {dbpath} and rerun.")
-            sys.exit(1)
-
+        
     """output"""
     return con
