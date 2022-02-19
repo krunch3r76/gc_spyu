@@ -21,7 +21,7 @@ $ cd gc_spyu
 ```bash
 (gc_spyu)$ git clean -dfx
 (gc_spyu)$ git clone https://github.com/krunch3r76/gc_spyu.git
-(gc_spyu)$ git checkout v0.0.6
+(gc_spyu)$ git checkout v0.0.7
 ```
 
 # DEMO
