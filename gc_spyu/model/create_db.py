@@ -63,6 +63,9 @@ def create_db(dbpath, isolation_level="DEFERRED"):
     extradb_file=model_working_dir/"extra.db"
     extradbpath=str(extradb_file)
 
+    whetherdbexists=True
+    if not Path(dbpath).exists():
+        whetherdbexists=False
 
     """setup adapters"""
     def adapt_decimal(d):
@@ -78,9 +81,9 @@ def create_db(dbpath, isolation_level="DEFERRED"):
     """connect"""
     con = _connect(dbpath, extradbpath, isolation_level)
 
-
-    if not _ensure_compatibility(con, dbpath, extradbpath):
-        con = _connect(dbpath, extradbpath, isolation_level) # reconnect after removal
+    if whetherdbexists:
+        _ensure_compatibility(con, dbpath, extradbpath)
+    con = _connect(dbpath, extradbpath, isolation_level) # reconnect after removal
 
 
 
@@ -149,6 +152,7 @@ def create_db(dbpath, isolation_level="DEFERRED"):
     if len(recordset) == 0:
         ss = "INSERT INTO  schema_version (version) VALUES (?)"
         con.execute(ss, (schema_version,) )
-        
+       
+    con.commit()
     """output"""
     return con
