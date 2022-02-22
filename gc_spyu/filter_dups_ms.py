@@ -33,7 +33,7 @@ class SpyUFilterMS(FilterProviderMS):
         if count == 1:
             score = SCORE_REJECTED
             print(f"skipping {name}@{offer.issuer}, reason:"
-                    " already have model information")
+                    "\033[5m already have model information!\033[25m")
             partial_addr = self._find_partial_match(offer.issuer)
             if partial_addr != None:
                 debug.dlog(f"discarding {partial_addr}", 11)
