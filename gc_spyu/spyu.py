@@ -216,9 +216,15 @@ class spyuCTX:
             datadir.mkdir(parents=True)
         except FileExistsError:
             pass
-        dbfilepath=datadir / "gc_spyu.db"
+        # dbfilepath=datadir / "gc_spyu.db"
 
-        self.myModel=MyModel(dbfilepath)
+        args=self._augment_parser().parse_args()
+        self.args = args
+        self._check_args(args)
+        if not args.disable_logging:
+            enable_default_logger(log_file=args.log_file)
+
+        self.myModel=MyModel(args.database_file)
         self.mySummaryLogger=None
         self.provisioner=None
 
@@ -228,11 +234,7 @@ class spyuCTX:
             , maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37")
             , perRunBudget=Decimal("0.1"), whitelist=None):
 
-        args=self._augment_parser().parse_args()
-        self._check_args(args)
-        if not args.disable_logging:
-            enable_default_logger(log_file=args.log_file)
-
+        args = self.args
         whitelist = set(get_gnprovider_as_list())
         self.whitelist = whitelist
         blacklist=luserset()
@@ -290,12 +292,15 @@ class spyuCTX:
 
     def _augment_parser(self):
         """ add to parser and parse CLI and return parser """
+        dbfilepath = get_datadir() / "gc_spyu" / "gc_spyu.db"
         parser = utils.build_parser("spyu : a provider provider cpu inspector")
         parser.add_argument('--spy', action="extend", nargs="+", type=str
                 , help="space delimited list of node/node names to fetch"
                 " information about")
         parser.add_argument("--disable-logging", action="store_true",
                 help="disable yapapi logging")
+        parser.add_argument("--database-file", help="The filepath to " \
+                " the database file", default=dbfilepath)
         return parser
 
     def _check_args(self, args):
