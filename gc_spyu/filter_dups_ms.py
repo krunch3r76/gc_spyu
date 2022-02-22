@@ -15,6 +15,7 @@ class SpyUFilterMS(FilterProviderMS):
         super().__init__(*args)
         self.whitelist=whitelist
         self.lowscored=set()
+
     def _find_partial_match(self, addr):
         """ return the whitelist partial match for a full addr """
         match = None
@@ -46,7 +47,7 @@ class SpyUFilterMS(FilterProviderMS):
         if score == SCORE_REJECTED:
             partial_addr = self._find_partial_match(offer.issuer)
             if partial_addr != None:
-                print(f"discarding {partial_addr}")
+                debug.dlog(f"discarding {partial_addr}")
                 self.whitelist.discard(partial_addr)
                 self.whitelist.discard(name)
                 self.lowscored.add(f"{name}@{offer.issuer}")

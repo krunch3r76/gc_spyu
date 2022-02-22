@@ -39,13 +39,25 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
 
     #----------  _blacklist_provider  --------------
     def _blacklist_provider(self, address, name, mark_skipped=False):
+        def _find_partial_match(addr):
+            """ return the whitelist partial match for a full addr """
+            match = None
+            for element in self.whitelist:
+                if addr.startswith(element):
+                    match = element
+                    break
+            return match
+
         self._blacklist.add(address)
         self._blacklist.associate_name(address, name)
         if mark_skipped:
             self.skipped.append(f"{name}@{address}")
             print(f"skipped {name}@{address}, reason: uncooperative")
-            self.whitelist.discard(name)
 
+        self.whitelist.discard(name)
+        partial_match=_find_partial_match(address)
+        self.whitelist.discard(partial_match)
+        print(f"--------discarded {partial_match}")
     #----------  _addInvoice    --------------------
     def _addInvoice(self, agr_id: str, total: Decimal):
         if agr_id in self._invoicesReceived:
