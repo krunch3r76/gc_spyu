@@ -37,8 +37,8 @@ if __name__ == "__main__":
 
     print("\n\033[0;32mTotal glm spent from all engine runs: \033[1m" + str(mySummaryLogger.sum_invoices()) + "\033[0m")
 
-    if isinstance(nodeInfoIds, list)  and len(nodeInfoIds) > 0:
+    if isinstance(nodeInfoIds, list)  and ( len(nodeInfoIds) > 0 or len(spyu_ctx.filtered_strategy.dupIds) > 0):
         try:
-            on_run_conclusion(mySummaryLogger, nodeInfoIds, myModel)
+            on_run_conclusion(mySummaryLogger, nodeInfoIds, myModel, spyu_ctx.filtered_strategy.dupIds)
         except KeyboardInterrupt:
             print("so be it")

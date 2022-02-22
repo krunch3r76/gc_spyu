@@ -15,6 +15,7 @@ class SpyUFilterMS(FilterProviderMS):
         super().__init__(*args)
         self.whitelist=whitelist
         self.lowscored=set()
+        self.dupIds=set()
 
     def _find_partial_match(self, addr):
         """ return the whitelist partial match for a full addr """
@@ -27,10 +28,11 @@ class SpyUFilterMS(FilterProviderMS):
 
     async def score_offer(self, offer, history=None):
         name = offer.props["golem.node.id.name"]
-        ss = "SELECT COUNT(*) FROM provider WHERE addr = "  \
+        ss = "SELECT COUNT(*), providerId FROM provider WHERE addr = "  \
                 f"'{offer.issuer}'"
-        count=self._con.execute(ss).fetchall()[0][0]
+        count, id_=self._con.execute(ss).fetchall()[0][:2]
         if count == 1:
+            self.dupIds.add(id_)
             score = SCORE_REJECTED
             print(f"skipping {name}@{offer.issuer}, reason:"
                     "\033[5m already have model information!\033[25m")
@@ -42,8 +44,11 @@ class SpyUFilterMS(FilterProviderMS):
             debug.dlog(f"remaining count: {len(self.whitelist)}")
         else:
             print(f"scoring {name}@{offer.issuer} count: {count}")
-            score = await super().score_offer(offer, history)
-
+            try:
+                score = await super().score_offer(offer, history)
+            except Exception as e:
+                print("unhandled exception ignored {e}")
+                score = SCORE_NEUTRAL
         if score == SCORE_REJECTED:
             partial_addr = self._find_partial_match(offer.issuer)
             if partial_addr != None:
@@ -51,7 +56,6 @@ class SpyUFilterMS(FilterProviderMS):
                 self.whitelist.discard(partial_addr)
                 self.whitelist.discard(name)
                 self.lowscored.add(f"{name}@{offer.issuer}")
-
         return score
 
     async def decorate_demand(self, demand):
