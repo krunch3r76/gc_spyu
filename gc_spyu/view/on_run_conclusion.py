@@ -27,7 +27,7 @@ def console_interface(mySummaryLogger, nodeInfoIds, myModel, dupIds):
             f" JOIN extra.nodeInfo" \
             f" NATURAL JOIN extra.cost" \
             f" NATURAL JOIN extra.offer" 
-        ss+=f" WHERE nodeInfoId IN ( {','.join(map(str,nodeInfoIds))} )"
+        ss+=f" WHERE nodeInfoId IN ( {', '.join(map(str,nodeInfoIds))} )"
         ss+=f" GROUP BY nodeInfoId"
 
         debug.dlog(ss)
@@ -43,27 +43,37 @@ def console_interface(mySummaryLogger, nodeInfoIds, myModel, dupIds):
             print("")
 
     if len(dupIds) > 0:
-        ss = "SELECT nodename, addr, modelname FROM provider NATURAL JOIN nodeInfo" \
-                + f" WHERE providerId IN ( {','.join(map(str,dupIds))} )"
+        ss = "SELECT nodename, addr, modelname" \
+                + " FROM provider NATURAL JOIN nodeInfo" \
+                +f" WHERE providerId IN ( {', '.join(map(str,dupIds))} )"
+        if len(nodeInfoIds) > 0:
+            ss = ss + " AND providerId NOT IN"  \
+                    + " ( SELECT providerId FROM extra.nodeInfo" \
+                    + " WHERE nodeInfoId NOT IN" \
+                    + f" ( {','.join(map(str,nodeInfoIds))} )" \
+                    + ")"
+
+        debug.dlog(ss)
         rs = myModel.execute(ss).fetchall()
-        max_nodeinfo_len=max([ len(r[0]) for r in rs ])
-        max_modelname_len=max([ len(r[2]) for r in rs ])
-        width=int(max_nodeinfo_len)+43+1+8
-        # line1="node address {0: <{}}".format(' ', width) + "\tnode name"
-        lines = []
-        for row in rs:
-            name = row[0]
-            address = row[1]
-            modelname = row[2]
-            name_address=f"{name}@{address}"
-            lines.append(f"{name_address: <{width}}\t{modelname}")
-       
-        max_line_len = max([ len(line) for line in lines ])
-        print("\n\nThe model information for the following nodes were already"
-                " on record")
-        print('-' * (max_line_len))
-        for line in lines:
-            print(line)
+        if len(rs) > 0:
+            max_nodeinfo_len=max([ len(r[0]) for r in rs ])
+            max_modelname_len=max([ len(r[2]) for r in rs ])
+            width=int(max_nodeinfo_len)+43+1+8
+            # line1="node address {0: <{}}".format(' ', width) + "\tnode name"
+            lines = []
+            for row in rs:
+                name = row[0]
+                address = row[1]
+                modelname = row[2]
+                name_address=f"{name}@{address}"
+                lines.append(f"{name_address: <{width}}\t{modelname}")
+           
+            max_line_len = max([ len(line) for line in lines ])
+            print("\n\nThe model information for the following nodes were already"
+                    " on record")
+            print('-' * (max_line_len))
+            for line in lines:
+                print(line)
 
 
 def on_run_conclusion(mySummaryLogger, nodeInfoIds, myModel, dupIds):

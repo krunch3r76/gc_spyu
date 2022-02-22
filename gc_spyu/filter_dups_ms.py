@@ -34,7 +34,7 @@ class SpyUFilterMS(FilterProviderMS):
         if count == 1:
             self.dupIds.add(id_)
             score = SCORE_REJECTED
-            print(f"skipping {name}@{offer.issuer}, reason:"
+            debug.dlog(f"skipping {name}@{offer.issuer}, reason:"
                     "\033[5m already have model information!\033[25m")
             partial_addr = self._find_partial_match(offer.issuer)
             if partial_addr != None:
@@ -43,7 +43,7 @@ class SpyUFilterMS(FilterProviderMS):
                 self.whitelist.discard(name)
             debug.dlog(f"remaining count: {len(self.whitelist)}")
         else:
-            print(f"scoring {name}@{offer.issuer} count: {count}")
+            debug.dlog(f"scoring {name}@{offer.issuer} count: {count}")
             try:
                 score = await super().score_offer(offer, history)
             except Exception as e:
@@ -59,5 +59,10 @@ class SpyUFilterMS(FilterProviderMS):
         return score
 
     async def decorate_demand(self, demand):
-        return await super().decorate_demand(demand)
+        try:
+            result = await super().decorate_demand(demand)
+        except Exception as e: 
+            print("unhandled exception during decorate_demand" 
+                    f" invocation {e}")
+        return result
 

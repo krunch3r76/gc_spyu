@@ -57,7 +57,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         self.whitelist.discard(name)
         partial_match=_find_partial_match(address)
         self.whitelist.discard(partial_match)
-        print(f"--------discarded {partial_match}")
+        # print(f"--------discarded {partial_match}")
     #----------  _addInvoice    --------------------
     def _addInvoice(self, agr_id: str, total: Decimal):
         if agr_id in self._invoicesReceived:
