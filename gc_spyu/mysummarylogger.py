@@ -44,7 +44,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         if mark_skipped:
             self.skipped.append(f"{name}@{address}")
             print(f"skipped {name}@{address}, reason: uncooperative")
-
+            self.whitelist.discard(name)
 
     #----------  _addInvoice    --------------------
     def _addInvoice(self, agr_id: str, total: Decimal):
