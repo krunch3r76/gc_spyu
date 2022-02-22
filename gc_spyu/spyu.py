@@ -35,6 +35,7 @@ from .luserset import luserset
 from .model.mymodel import MyModel
 from .model.get_datadir import get_datadir
 from .on_accepted_result import on_accepted_result
+from .filter_dups_ms import SpyUFilterMS
 g_source_dir=pathlib.Path(__file__).resolve().parent
 
 
@@ -247,7 +248,10 @@ class spyuCTX:
                 , yapapi.props.com.Counter.TIME: ENVmax/Decimal('3600')
                 }
         )
-        filtered_strategy = FilterProviderMS(blacklist, strat)
+        # filtered_strategy = FilterProviderMS(blacklist, strat)
+        self.filtered_strategy = SpyUFilterMS(self.myModel.con, whitelist,
+                blacklist, strat)
+
         self.mySummaryLogger=MySummaryLogger(blacklist, self.myModel
                 , self.whitelist)
         self.provisioner = Provisioner(perRunBudget=perRunBudget
@@ -255,7 +259,7 @@ class spyuCTX:
                 , payment_driver=args.payment_driver
                 , payment_network=args.payment_network
                 , event_consumer=self.mySummaryLogger
-                , strategy=filtered_strategy, package=package
+                , strategy=self.filtered_strategy, package=package
                 , result_callback=on_accepted_result(self.myModel
                     , self.mySummaryLogger)
                 )
@@ -267,6 +271,8 @@ class spyuCTX:
             whitelist = blacklist.difference(whitelist)
             if len(whitelist) > 0:
                 print(f"still waiting on {' '.join(whitelist)}")
+            else:
+                print("whitelist empty")
 
 
 

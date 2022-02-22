@@ -34,6 +34,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         self.skipped = []
         self._agreementsConfirmed = [] # those for which a task was accepted
         self.providersFailed=[] # {name:, address:}, ...
+        self.lastwaitlist=set()
 	# implies an invoice
 
     #----------  _blacklist_provider  --------------
@@ -42,7 +43,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         self._blacklist.associate_name(address, name)
         if mark_skipped:
             self.skipped.append(f"{name}@{address}")
-            print(f"skipped {name}@{address}: uncooperative")
+            print(f"skipped {name}@{address}, reason: uncooperative")
 
 
     #----------  _addInvoice    --------------------
@@ -219,8 +220,14 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
             if self.interrupted:
                 self._blacklist_provider(address, name, True)
                 self.interrupted=False
-
-
+        elif isinstance(event, yapapi.events.NoProposalsConfirmed):
+            pass
+            # boldlist = ', '.join(map(lambda s: f'\033[1m{s}\033[0m'
+            #     , self.whitelist))
+            # print(f"still waiting on {boldlist}")
+        elif isinstance(event, yapapi.events.ProposalFailed):
+            tb = event.exc_info[2]
+            traceback.print_tb(tb)
         self._internal_log.write(f"\n-----\n{event}\n-------\n")
 
         super().log(event)
@@ -236,4 +243,10 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                 debug.dlog("raising keyboardinterrupt")
                 raise KeyboardInterrupt
         else:
-            debug.dlog(f"looking for {diff}")
+            boldlist = ', '.join(map(lambda s: f'\033[1m{s}\033[0m'
+                , self.whitelist))
+            if self.whitelist != self.lastwaitlist:
+                print(f"still waiting on {boldlist}")
+                self.lastwaitlist = self.whitelist.copy()
+            # print(f"looking for {diff}")
+            # debug.dlog(f"looking for {diff}")
