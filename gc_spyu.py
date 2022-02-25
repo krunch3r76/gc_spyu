@@ -12,7 +12,8 @@ if __name__ == "__main__":
     utils.run_golem_example(spyu_ctx())
 
     mySummaryLogger, nodeInfoIds, myModel = spyu_ctx.get_results()
-    mySummaryLogger.providersFailed.append({'address': '0x3a8052f782c55f96be7ffbce22587ed917ad98b9', 'name': 'michal'})
+    mySummaryLogger.providersFailed.append({'address':
+        '0x3a8052f782c55f96be7ffbce22587ed917ad98b9', 'name': 'michal'})
     merged_list=mySummaryLogger.providersFailed
     merged_list.extend(mySummaryLogger.skipped)
     if len(merged_list) > 0:
@@ -27,18 +28,6 @@ if __name__ == "__main__":
 
         for name, address in merged_pairs:
             print(f"{name}@{address}")
-        # providersFailed_dict=dict(mySummaryLogger.providersFailed)
-        # skipped_dict=dict(mySummaryLogger.skipped)
-        # print(providersFailed_dict)
-        # print(skipped_dict)
-
-        # skipped_merged_dict = dict(mySummaryLogger.providersFailed)
-        # skipped_merged_dict.update(dict(mySummaryLogger.skipped))
-
-        # for skipped in mySummaryLogger.providersFailed:
-        #     print(f"{skipped['name']}@{skipped['address']}")
-        # for skipped in mySummaryLogger.skipped:
-        #     print(f"{skipped['name']}@{skipped['address']}")
         print("-" * (len(msg)-1))
 
     if len(spyu_ctx.filtered_strategy.lowscored) > 0:
@@ -59,10 +48,13 @@ if __name__ == "__main__":
             print(f"{unseen}")
         print("-" * (len(msg)-1))
 
-    print("\n\033[0;32mTotal glm spent from all engine runs: \033[1m" + str(mySummaryLogger.sum_invoices()) + "\033[0m")
+    print("\n\033[0;32mTotal glm spent from all engine runs: \033[1m"
+            + str(mySummaryLogger.sum_invoices()) + "\033[0m")
 
-    if isinstance(nodeInfoIds, list)  and ( len(nodeInfoIds) > 0 or len(spyu_ctx.filtered_strategy.dupIds) > 0):
+    if isinstance(nodeInfoIds, list)  and ( len(nodeInfoIds) > 0
+            or len(spyu_ctx.filtered_strategy.dupIds) > 0):
         try:
-            on_run_conclusion(mySummaryLogger, nodeInfoIds, myModel, spyu_ctx.filtered_strategy.dupIds)
+            on_run_conclusion(mySummaryLogger, nodeInfoIds, myModel
+                    , spyu_ctx.filtered_strategy.dupIds)
         except KeyboardInterrupt:
             print("so be it")
