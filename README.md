@@ -66,7 +66,7 @@ AttributeError: 'SmartQueue' object has no attribute '_new_items'
 ```
 please use a version of Python < 3.10.
 ```bash
-python3.9 -m myvenv
+python3.9 -m venv myvenv
 # etc
 ```
 
