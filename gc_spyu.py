@@ -3,6 +3,8 @@ from gc_spyu import spyu
 from gc_spyu import utils
 from gc_spyu.view.on_run_conclusion import on_run_conclusion
 import debug
+import pprint
+from collections import ChainMap
 
 if __name__ == "__main__":
     debug.dlog("starting")
@@ -10,17 +12,38 @@ if __name__ == "__main__":
     utils.run_golem_example(spyu_ctx())
 
     mySummaryLogger, nodeInfoIds, myModel = spyu_ctx.get_results()
-
-    if len(mySummaryLogger.providersFailed) > 0:
-        msg="The following providers were skipped because they were unreachable or otherwise uncooperative:"
+    mySummaryLogger.providersFailed.append({'address': '0x3a8052f782c55f96be7ffbce22587ed917ad98b9', 'name': 'michal'})
+    merged_list=mySummaryLogger.providersFailed
+    merged_list.extend(mySummaryLogger.skipped)
+    if len(merged_list) > 0:
+        msg="The following providers were skipped because they were" \
+            " unreachable or otherwise uncooperative:"
         print(f"\n{msg}")
         print("-" * (len(msg)-1))
-        for skipped in mySummaryLogger.providersFailed:
-            print(f"{skipped['name']}@{skipped['address']}")
+
+        merged_pairs = set()
+        for dict_ in merged_list:
+            merged_pairs.add( (dict_['name'], dict_['address'],) )
+
+        for name, address in merged_pairs:
+            print(f"{name}@{address}")
+        # providersFailed_dict=dict(mySummaryLogger.providersFailed)
+        # skipped_dict=dict(mySummaryLogger.skipped)
+        # print(providersFailed_dict)
+        # print(skipped_dict)
+
+        # skipped_merged_dict = dict(mySummaryLogger.providersFailed)
+        # skipped_merged_dict.update(dict(mySummaryLogger.skipped))
+
+        # for skipped in mySummaryLogger.providersFailed:
+        #     print(f"{skipped['name']}@{skipped['address']}")
+        # for skipped in mySummaryLogger.skipped:
+        #     print(f"{skipped['name']}@{skipped['address']}")
         print("-" * (len(msg)-1))
 
     if len(spyu_ctx.filtered_strategy.lowscored) > 0:
-        msg="The following providers were skipped because they failed the scoring criteria:"
+        msg="The following providers were skipped because they failed" \
+            " the scoring criteria:"
         print(f"\n{msg}")
         print("-" * (len(msg)-1))
         for low in spyu_ctx.filtered_strategy.lowscored:
@@ -28,7 +51,8 @@ if __name__ == "__main__":
         print("-" * (len(msg)-1))
 
     if len(spyu_ctx.filtered_strategy.whitelist) > 0:
-        msg="The following providers were skipped because they were not seen on the network:"
+        msg="The following providers were skipped because they were not" \
+                " seen on the network:"
         print(f"\n{msg}")
         print("-" * (len(msg)-1))
         for unseen in spyu_ctx.filtered_strategy.whitelist:

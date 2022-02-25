@@ -51,8 +51,9 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         self._blacklist.add(address)
         self._blacklist.associate_name(address, name)
         if mark_skipped:
-            self.skipped.append(f"{name}@{address}")
-            print(f"skipped {name}@{address}, reason: uncooperative")
+            self.skipped.append({'name': name, 'address': address})
+            # self.skipped.append(f"{name}@{address}")
+            # print(f"skipped {name}@{address}, reason: uncooperative")
 
         self.whitelist.discard(name)
         partial_match=_find_partial_match(address)
@@ -71,7 +72,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
         sum_=Decimal('0.0')
         if len(self._invoicesReceived) > 0:
             sum_ = Decimal(str(functools.reduce(lambda a,b: a+b,
-		    self._invoicesReceived.values())))
+                self._invoicesReceived.values())))
         return sum_
 
     def sum_invoices_on(self, addr):
@@ -133,11 +134,12 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
             self.id_to_info[event.agr_id]={ 'name': event.provider_info.name
                     , 'address': event.provider_id
                     , 'timestamp': str(Decimal(
-			    str(datetime.now().timestamp())))
+                        str(datetime.now().timestamp())))
             }
             self._jobid_to_agr[event.job_id]=event.agr_id
-            debug.dlog(f"agreement created with agr_id: {event.agr_id} with"
-	     f" provider named: {event.provider_info.name}")
+            debug.dlog(
+                f"agreement created with agr_id: {event.agr_id} with"
+                f" provider named: {event.provider_info.name}")
             self._blacklist_provider(event.provider_id,
                     event.provider_info.name)
         elif isinstance(self, yapapi.events.AgreementConfirmed):
@@ -150,7 +152,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
             self._agreementsConfirmed.append(agr_id)
 
             # debug.dlog(f"{event}\n--------blacklisting {name}@{address} "
-	    	# " because of task accepted")
+            # " because of task accepted")
             # self._blacklist_provider(address, name)
         # [ WorkerFinished ]
         elif isinstance(event, yapapi.events.WorkerFinished):
@@ -166,7 +168,10 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                 try:
                     agr_id=self._jobid_to_agr[event.job_id]
                     info=self.id_to_info[agr_id]
-                    self.providersFailed.append(info)
+                    self.providersFailed.append(info['address']
+                            , info['name'])
+                    self._blacklist_provider(info['address']
+                            , info['name'])
                 except:
                     agr_id='unknown agreement'
                     info='no info'
