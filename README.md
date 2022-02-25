@@ -29,8 +29,8 @@ From github.com:krunch3r76/gc_spyu
 ```bash
 (gc_spyu)$ git checkout master
 (gc_spyu)$ git checkout --hard HEAD
-(gc_spyu)$ git clean -dfx
 (gc_spyu)$ git pull
+(gc_spyu)$ git clean -dfx
 (gc_spyu)$ git checkout v0.1.2
 ```
 
