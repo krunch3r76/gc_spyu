@@ -27,6 +27,7 @@ From github.com:krunch3r76/gc_spyu
 
 # upgrade installation to latest tag, removing current installation
 ```bash
+(gc_spyu)$ git checkout master
 (gc_spyu)$ git checkout --hard HEAD
 (gc_spyu)$ git clean -dfx
 (gc_spyu)$ git pull
