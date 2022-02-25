@@ -34,7 +34,7 @@ From github.com:krunch3r76/gc_spyu
 
 # DEMO
 
-https://user-images.githubusercontent.com/46289600/152745449-44dd2397-a4ea-41e0-8584-9eddccda1427.mp4
+https://user-images.githubusercontent.com/46289600/155652172-654b37b5-7669-4f1c-bb18-b47fe8bc4053.mp4
 
 
 # USAGE
