@@ -34,22 +34,32 @@ colorama.init()
 
 def build_parser(description: str) -> argparse.ArgumentParser:
     current_time_str = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S%z")
-    tmpdir_as_path = (Path(tempfile.gettempdir())/"gcspyu_logs")
-    tmpdir_as_path.mkdir(parents=True,exist_ok=True)
-    default_log_as_path=tmpdir_as_path/f"{current_time_str}"
-    default_log_path=str(default_log_as_path)
+    tmpdir_as_path = Path(tempfile.gettempdir()) / "gcspyu_logs"
+    tmpdir_as_path.mkdir(parents=True, exist_ok=True)
+    default_log_as_path = tmpdir_as_path / f"{current_time_str}"
+    default_log_path = str(default_log_as_path)
     # default_log_path = Path(tempfile.gettempdir()) / f"yapapi_{current_time_str}.log"
 
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter )
-    parser.add_argument(
-        "--payment-driver", "--driver", help="Payment driver name, for example `erc20`"
-        , default="erc20"
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "--payment-network", "--network", help="Payment network name, for example `rinkeby or polygon`"
-        , default="rinkeby"
+        "--payment-driver",
+        "--driver",
+        help="Payment driver name, for example `erc20`",
+        default="erc20",
     )
-    parser.add_argument("--subnet-tag", help="Subnet name, for example `devnet-beta or public-beta`", default="devnet-beta")
+    parser.add_argument(
+        "--payment-network",
+        "--network",
+        help="Payment network name, for example `rinkeby or polygon`",
+        default="rinkeby",
+    )
+    parser.add_argument(
+        "--subnet-tag",
+        help="Subnet name, for example `devnet-beta or public-beta`",
+        default="devnet-beta",
+    )
     parser.add_argument(
         "--log-file",
         default=str(default_log_path),
@@ -115,8 +125,8 @@ def run_golem_example(spyu_coro, log_file=None):
         try:
             loop.run_until_complete(task)
             print(
-                f"{TEXT_COLOR_YELLOW}Shutdown completed, thank you for waiting!{TEXT_COLOR_DEFAULT}"
-            )
+                f"{TEXT_COLOR_YELLOW}"
+                f"Shutdown completed, thank you for waiting!{TEXT_COLOR_DEFAULT}")
         except (asyncio.CancelledError, KeyboardInterrupt):
             pass
     except Exception as e:

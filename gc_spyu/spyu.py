@@ -9,6 +9,7 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 import pprint
 import pathlib
+
 # import traceback
 import sys
 import io
@@ -36,110 +37,97 @@ from .model.mymodel import MyModel
 from .model.get_datadir import get_datadir
 from .on_accepted_result import on_accepted_result
 from .filter_dups_ms import SpyUFilterMS
-g_source_dir=pathlib.Path(__file__).resolve().parent
+
+g_source_dir = pathlib.Path(__file__).resolve().parent
 
 
-
-
-
-
-class Provisioner():
+class Provisioner:
     """setup context and interface for launching a Golem instance"""
 
     # +-+-+-+-+-+-+ __init__ -+-+-+-+-+-+-+
-    def __init__(self, perRunBudget, subnet_tag, payment_driver
-            , payment_network, event_consumer, strategy, package
-            , result_callback, golem_timeout=timedelta(minutes=6)):
-        self._perRunBudget         =perRunBudget
-        self.__golem_timeout        =golem_timeout # the timeout for the
-            #golem instance | >= script timeout
-        self._subnet_tag            =subnet_tag
-        self._payment_driver        =payment_driver
-        self._payment_network       =payment_network
-        self._event_consumer        =event_consumer
-        self._strategy              =strategy    # incorporates logic to
-            # prevent work being resent to the same node in the same run
-        self.__tempdir              =tempfile.TemporaryDirectory() # cleans
-            #up on garbage collection
-        self._workdir               =self.__tempdir.name
-        self._package               =package
-        self._result_callback       =result_callback
-        self.__env_printed          =False
-        self.__timeStartLast        =None
-        self.nodeInfoIds           =[] # inspected
+    def __init__(
+        self,
+        perRunBudget,
+        subnet_tag,
+        payment_driver,
+        payment_network,
+        event_consumer,
+        strategy,
+        package,
+        result_callback,
+        golem_timeout=timedelta(minutes=6),
+    ):
+        self._perRunBudget = perRunBudget
+        self.__golem_timeout = golem_timeout  # the timeout for the
+        # golem instance | >= script timeout
+        self._subnet_tag = subnet_tag
+        self._payment_driver = payment_driver
+        self._payment_network = payment_network
+        self._event_consumer = event_consumer
+        self._strategy = strategy  # incorporates logic to
+        # prevent work being resent to the same node in the same run
+        self.__tempdir = tempfile.TemporaryDirectory()  # cleans
+        # up on garbage collection
+        self._workdir = self.__tempdir.name
+        self._package = package
+        self._result_callback = result_callback
+        self.__env_printed = False
+        self.__timeStartLast = None
+        self.nodeInfoIds = []  # inspected
         # comment: golem_timeout set too low (e.g. < 10 minutes) might
-        #result in no offers being collected
-
-
-
-
+        # result in no offers being collected
 
     # ++++++++++++ __call__ +++++++++++++
     async def __call__(self):
-        """ enter market """
-        self.__timeStartLast = datetime.now() # probably don't need this as
+        """enter market"""
+        self.__timeStartLast = datetime.now()  # probably don't need this as
         # an attribute
 
         async with Golem(
-                budget=self._perRunBudget
-                , subnet_tag=self._subnet_tag
-                , payment_driver=self._payment_driver
-                , payment_network=self._payment_network
-                , event_consumer=self._event_consumer.log
-                , strategy=self._strategy
-                , stream_output=False
-                ) as golem:
+            budget=self._perRunBudget,
+            subnet_tag=self._subnet_tag,
+            payment_driver=self._payment_driver,
+            payment_network=self._payment_network,
+            event_consumer=self._event_consumer.log,
+            strategy=self._strategy,
+            stream_output=False,
+        ) as golem:
 
-
-            """ output parameters once """
-            if self.__env_printed==False:
+            """output parameters once"""
+            if self.__env_printed == False:
                 utils.print_env_info(golem)
-                self.__env_printed=True
+                self.__env_printed = True
 
             async for completed_task in golem.execute_tasks(
-                    self._worker
-                    , [Task(data={"results-dir": self._workdir})]
-                    , payload=self._package
-                    , max_workers=1
-                    , timeout=self.__golem_timeout # arbitrary if
-                        # self._wait_for_provider_timeout less
-                    ):
-                    result = completed_task.result
-                    """ keys->'provider_name', 'json_file', 'provider_id',
+                self._worker,
+                [Task(data={"results-dir": self._workdir})],
+                payload=self._package,
+                max_workers=1,
+                timeout=self.__golem_timeout  # arbitrary if
+                # self._wait_for_provider_timeout less
+            ):
+                result = completed_task.result
+                """ keys->'provider_name', 'json_file', 'provider_id',
                         'agr_id', 'offer' """
-                    agr_id = result['agr_id']
-                    try:
-                        self.nodeInfoIds.extend(
-                                await self._result_callback(result)
-                                )
-                    except Exception as e:
-                        tb=sys.exc_info()[2]
-                        print(f"\033[1mEXCEPTION:\033[0m\n")
-                        print(f"{traceback.print_exc()}")
-                        raise e
+                agr_id = result["agr_id"]
+                try:
+                    self.nodeInfoIds.extend(await self._result_callback(result))
+                except Exception as e:
+                    tb = sys.exc_info()[2]
+                    print(f"\033[1mEXCEPTION:\033[0m\n")
+                    print(f"{traceback.print_exc()}")
+                    raise e
 
-
-
-        if (datetime.now() - self.__timeStartLast) \
-                > ( self.__golem_timeout - timedelta(minutes=1) ):
+        if (datetime.now() - self.__timeStartLast) > (
+            self.__golem_timeout - timedelta(minutes=1)
+        ):
             return True
         else:
             return False
 
-
-
-
-
-
-
-
-
-
-
-
     async def _worker(self, context: WorkContext, tasks: AsyncIterable[Task]):
         """run spy script, d/l, and store provider ids and filepath to d/l
-            in result"""
+        in result"""
         """
         context.id -> activity id; same as ActivityCreated :event.act_id
         context.provider_name -> name of provider
@@ -148,17 +136,21 @@ class Provisioner():
         """
 
         async for task in tasks:
-            agr_id=context._agreement_details.agreement_id
+            agr_id = context._agreement_details.agreement_id
             debug.dlog(
-                    f"starting work: context id: {context.id},"
-                    f" {context.provider_name}, {context.provider_id}"
-                    f"\nagreement id is: {agr_id}"
-                    )
+                f"starting work: context id: {context.id},"
+                f" {context.provider_name}, {context.provider_id}"
+                f"\nagreement id is: {agr_id}"
+            )
 
             script = context.new_script(timeout=timedelta(minutes=2))
-            script.run("/root/provider.sh", context.provider_name,
-                    context.provider_id, str(datetime.now().timestamp()))
-            target=f"{task.data['results-dir']}/{context.provider_id}.json"
+            script.run(
+                "/root/provider.sh",
+                context.provider_name,
+                context.provider_id,
+                str(datetime.now().timestamp()),
+            )
+            target = f"{task.data['results-dir']}/{context.provider_id}.json"
             script.download_file(f"/golem/output/intelGathered.json", target)
             try:
                 yield script
@@ -170,39 +162,16 @@ class Provisioner():
                 raise
             else:
                 # place result along with meta into a dict
-                result_dict= { 'provider_name': context.provider_name
-                        , 'json_file': target
-                        , 'provider_id': context.provider_id
-                        , 'agr_id': agr_id # may be used to lookup additional
-                        # info in MySummaryLogger
-                        , 'offer':
-                        context._agreement_details.provider_view.properties
-                        }
+                result_dict = {
+                    "provider_name": context.provider_name,
+                    "json_file": target,
+                    "provider_id": context.provider_id,
+                    "agr_id": agr_id  # may be used to lookup additional
+                    # info in MySummaryLogger
+                    ,
+                    "offer": context._agreement_details.provider_view.properties,
+                }
                 task.accept_result(result_dict)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #####################################
@@ -218,56 +187,61 @@ class spyuCTX:
             pass
         # dbfilepath=datadir / "gc_spyu.db"
 
-        args=self._augment_parser().parse_args()
+        args = self._augment_parser().parse_args()
         self.args = args
         self._check_args(args)
         if not args.disable_logging:
             enable_default_logger(log_file=args.log_file)
 
-        self.myModel=MyModel(args.database_file)
-        self.mySummaryLogger=None
-        self.provisioner=None
-
+        self.myModel = MyModel(args.database_file)
+        self.mySummaryLogger = None
+        self.provisioner = None
 
     # +++++++++ __call __ +++++++++++++
-    async def __call__(self, CPUmax=Decimal("0.361"), ENVmax=Decimal("inf")
-            , maxGlm=Decimal("1.0"), STARTmax=Decimal("0.37")
-            , perRunBudget=Decimal("0.1"), whitelist=None):
+    async def __call__(
+        self,
+        CPUmax=Decimal("0.361"),
+        ENVmax=Decimal("inf"),
+        maxGlm=Decimal("1.0"),
+        STARTmax=Decimal("0.37"),
+        perRunBudget=Decimal("0.1"),
+        whitelist=None,
+    ):
 
         args = self.args
         whitelist = set(get_gnprovider_as_list())
         self.whitelist = whitelist
-        blacklist=luserset()
-        glmSpent=Decimal(0.0)
+        blacklist = luserset()
+        glmSpent = Decimal(0.0)
         package = await vm.repo(
-            image_hash=
-            "c1d015f76bbe8d6fa4ed8ffbd5280e261f4025dcca75490f0fd716cf"
+            image_hash="c1d015f76bbe8d6fa4ed8ffbd5280e261f4025dcca75490f0fd716cf"
         )
-        strat=yapapi.strategy.DummyMS(
-            max_fixed_price=Decimal("0.1")
-            , max_price_for={
-                yapapi.props.com.Counter.CPU: CPUmax/Decimal('3600')
-                , yapapi.props.com.Counter.TIME: ENVmax/Decimal('3600')
-                }
+        strat = yapapi.strategy.DummyMS(
+            max_fixed_price=Decimal("0.1"),
+            max_price_for={
+                yapapi.props.com.Counter.CPU: CPUmax / Decimal("3600"),
+                yapapi.props.com.Counter.TIME: ENVmax / Decimal("3600"),
+            },
         )
         # filtered_strategy = FilterProviderMS(blacklist, strat)
-        self.filtered_strategy = SpyUFilterMS(self.myModel.con, whitelist,
-                blacklist, strat)
+        self.filtered_strategy = SpyUFilterMS(
+            self.myModel.con, whitelist, blacklist, strat
+        )
 
-        self.mySummaryLogger=MySummaryLogger(blacklist, self.myModel
-                , self.whitelist)
-        self.provisioner = Provisioner(perRunBudget=perRunBudget
-                , subnet_tag=args.subnet_tag
-                , payment_driver=args.payment_driver
-                , payment_network=args.payment_network
-                , event_consumer=self.mySummaryLogger
-                , strategy=self.filtered_strategy, package=package
-                , result_callback=on_accepted_result(self.myModel
-                    , self.mySummaryLogger)
-                )
-        boldlist = ', '.join(map(lambda s: f'\033[1m{s}\033[0m', whitelist))
-        print(f"waiting on {boldlist}") 
-        cancelled=False
+        self.mySummaryLogger = MySummaryLogger(blacklist, self.myModel, self.whitelist)
+        self.provisioner = Provisioner(
+            perRunBudget=perRunBudget,
+            subnet_tag=args.subnet_tag,
+            payment_driver=args.payment_driver,
+            payment_network=args.payment_network,
+            event_consumer=self.mySummaryLogger,
+            strategy=self.filtered_strategy,
+            package=package,
+            result_callback=on_accepted_result(self.myModel, self.mySummaryLogger),
+        )
+        boldlist = ", ".join(map(lambda s: f"\033[1m{s}\033[0m", whitelist))
+        print(f"waiting on {boldlist}")
+        cancelled = False
         while not cancelled and len(whitelist) > 0:
             cancelled = await self.provisioner()
             whitelist = blacklist.difference(whitelist)
@@ -276,35 +250,34 @@ class spyuCTX:
             else:
                 print("whitelist empty")
 
-
-
-
-
     # +++++++++++ get_results ++++++++++++++
     def get_results(self):
-        return self.mySummaryLogger, self.provisioner.nodeInfoIds, \
-                self.myModel
-
-
-
-
-
+        return self.mySummaryLogger, self.provisioner.nodeInfoIds, self.myModel
 
     def _augment_parser(self):
-        """ add to parser and parse CLI and return parser """
+        """add to parser and parse CLI and return parser"""
         dbfilepath = get_datadir() / "gc_spyu" / "gc_spyu.db"
         parser = utils.build_parser("spyu : a provider provider cpu inspector")
-        parser.add_argument('--spy', action="extend", nargs="+", type=str
-                , help="space delimited list of node/node names to fetch"
-                " information about")
-        parser.add_argument("--disable-logging", action="store_true",
-                help="disable yapapi logging")
-        parser.add_argument("--database-file", help="The filepath to " \
-                " the database file", default=dbfilepath)
+        parser.add_argument(
+            "--spy",
+            action="extend",
+            nargs="+",
+            type=str,
+            help="space delimited list of node/node names to fetch"
+            " information about",
+        )
+        parser.add_argument(
+            "--disable-logging", action="store_true", help="disable yapapi logging"
+        )
+        parser.add_argument(
+            "--database-file",
+            help="The filepath to " " the database file",
+            default=dbfilepath,
+        )
         return parser
 
     def _check_args(self, args):
-        if args.spy == None and os.environ.get('GNPROVIDER', None) == None:
+        if args.spy == None and os.environ.get("GNPROVIDER", None) == None:
             print("Usage: spyu --spy <space delimited list of node names>")
             print("Example: spyu --spy q53 sycamore")
             sys.exit(1)
@@ -312,45 +285,27 @@ class spyuCTX:
         """ populate whitelist from environment (filterms) """
         if args.spy != None:
             for element in args.spy:
-                if ',' in element:
+                if "," in element:
                     try:
-                        input("WARNING, commas seen in node names passed as"
-                        " arguments to --spy. If this was unintentional"
-                        " please quit otherwise press enter to proceed")
+                        input(
+                            "WARNING, commas seen in node names passed as"
+                            " arguments to --spy. If this was unintentional"
+                            " please quit otherwise press enter to proceed"
+                        )
                     except KeyboardInterrupt:
                         print()
                         sys.exit(0)
                     else:
                         break
-            whitelist=set(args.spy)
-            os.environ['GNPROVIDER']=f'[{",".join(args.spy)}]'
+            whitelist = set(args.spy)
+            os.environ["GNPROVIDER"] = f'[{",".join(args.spy)}]'
         else:
-            print("Using GNPROVIDER filterms environment variable to select"
-                   " nodes")
+            print("Using GNPROVIDER filterms environment variable to select" " nodes")
             try:
                 input("press enter to proceed")
             except KeyboardInterrupt:
                 print()
                 sys.exit(0)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # save
