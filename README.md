@@ -27,14 +27,16 @@ From github.com:krunch3r76/gc_spyu
 
 # upgrade installation to latest tag, removing current installation
 ```bash
-(gc_spyu)$ git clean -dfx
+(gc_spyu)$ git checkout master
+(gc_spyu)$ git checkout --hard HEAD
 (gc_spyu)$ git pull
+(gc_spyu)$ git clean -dfx
 (gc_spyu)$ git checkout v0.1.3
 ```
 
 # DEMO
 
-https://user-images.githubusercontent.com/46289600/152745449-44dd2397-a4ea-41e0-8584-9eddccda1427.mp4
+https://user-images.githubusercontent.com/46289600/155652172-654b37b5-7669-4f1c-bb18-b47fe8bc4053.mp4
 
 
 # USAGE
@@ -64,7 +66,7 @@ AttributeError: 'SmartQueue' object has no attribute '_new_items'
 ```
 please use a version of Python < 3.10.
 ```bash
-python3.9 -m myvenv
+python3.9 -m venv myvenv
 # etc
 ```
 
