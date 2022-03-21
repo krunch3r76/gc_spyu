@@ -11,11 +11,9 @@ if __name__ == "__main__":
     utils.run_golem_example(spyu_ctx())
 
     mySummaryLogger, nodeInfoIds, myModel = spyu_ctx.get_results()
-    mySummaryLogger.providersFailed.append(
-        {"address": "0x3a8052f782c55f96be7ffbce22587ed917ad98b9", "name": "michal"}
-    )
     merged_list = mySummaryLogger.providersFailed
     merged_list.extend(mySummaryLogger.skipped)
+    debug.dlog(f"merged_list: {merged_list}")
     if len(merged_list) > 0:
         msg = (
             "The following providers were skipped because they were"

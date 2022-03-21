@@ -11,7 +11,7 @@ For a listing of providers to inspect, visit https://stats.golem.network or invo
 ```bash
 $ git clone https://github.com/krunch3r76/gc_spyu.git
 $ cd gc_spyu
-(gc_spyu)$ git checkout v0.1.2
+(gc_spyu)$ git checkout v0.1.3
 (gc_spyu)$ python3 -m venv myvenv # python3.9 or python3.8
 (gc_spyu)$ . myvenv/bin/activate
 (myvenv)$ pip install -r requirements.txt
@@ -22,14 +22,14 @@ $ cd gc_spyu
 (gc_spyu)$ git fetch
 From github.com:krunch3r76/gc_spyu
    d87b579..01f72be  master     -> origin/master
- * [new tag]         v0.1.2     -> v0.1.2
+ * [new tag]         v0.1.3     -> v0.1.3
 ```
 
 # upgrade installation to latest tag, removing current installation
 ```bash
 (gc_spyu)$ git clean -dfx
 (gc_spyu)$ git pull
-(gc_spyu)$ git checkout v0.1.2
+(gc_spyu)$ git checkout v0.1.3
 ```
 
 # DEMO

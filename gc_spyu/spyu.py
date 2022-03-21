@@ -297,7 +297,7 @@ class spyuCTX:
                         sys.exit(0)
                     else:
                         break
-            whitelist = set(args.spy)
+            # whitelist = set(args.spy)
             os.environ["GNPROVIDER"] = f'[{",".join(args.spy)}]'
         else:
             print("Using GNPROVIDER filterms environment variable to select" " nodes")

@@ -46,10 +46,13 @@ class SpyUFilterMS(FilterProviderMS):
                 "\033[5m already have model information!\033[25m"
             )
             partial_addr = self._find_partial_match(offer.issuer)
-            if partial_addr != None:
-                debug.dlog(f"discarding {partial_addr}", 11)
+            # if partial_addr != None:
+            if True:
+                debug.dlog(f"discarding {partial_addr}", 10)
                 self.whitelist.discard(partial_addr)
                 self.whitelist.discard(name)
+            if partial_addr != None:
+                self.dupIds.add(partial_addr)
             debug.dlog(f"remaining count: {len(self.whitelist)}")
         else:
             debug.dlog(f"scoring {name}@{offer.issuer} count: {count}")

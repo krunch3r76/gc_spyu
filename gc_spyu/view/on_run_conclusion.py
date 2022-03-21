@@ -43,6 +43,7 @@ def console_interface(mySummaryLogger, nodeInfoIds, myModel, dupIds):
             print("")
 
     if len(dupIds) > 0:
+        debug.dlog(dupIds)
         ss = "SELECT nodename, addr, modelname" \
                 + " FROM provider NATURAL JOIN nodeInfo" \
                 +f" WHERE providerId IN ( {', '.join(map(str,dupIds))} )"

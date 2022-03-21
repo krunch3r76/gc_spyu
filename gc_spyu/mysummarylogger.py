@@ -151,7 +151,7 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                 f"agreement created with agr_id: {event.agr_id} with"
                 f" provider named: {event.provider_info.name}"
             )
-            self._blacklist_provider(event.provider_id, event.provider_info.name)
+            # self._blacklist_provider(event.provider_id, event.provider_info.name)
         elif isinstance(self, yapapi.events.AgreementConfirmed):
             pass
         # [ TaskAccepted ]
@@ -180,11 +180,14 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                 try:
                     agr_id = self._jobid_to_agr[event.job_id]
                     info = self.id_to_info[agr_id]
-                    self.providersFailed.append(info["address"], info["name"])
-                    self._blacklist_provider(info["address"], info["name"])
                 except:
                     agr_id = "unknown agreement"
                     info = "no info"
+                else:
+                    self.providersFailed.extend(
+                        [{"address": info["address"], "name": info["name"]}]
+                    )
+                    self._blacklist_provider(info["address"], info["name"])
                 if (
                     event.exc_info != None
                     and len(event.exc_info) > 0
@@ -278,6 +281,9 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
             agreements_with_invoices = set(self._invoicesReceived.keys())
             agreementsConfirmed = set(self._agreementsConfirmed)
             if agreements_with_invoices == agreementsConfirmed:
+
+                debug.dlog(f"agreements_with_invoices: {agreements_with_invoices}")
+                debug.dlog(f"agreemintsConfirmd: {agreementsConfirmed}")
                 debug.dlog("raising keyboardinterrupt")
                 raise KeyboardInterrupt
         else:
