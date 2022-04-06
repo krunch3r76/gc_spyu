@@ -1,3 +1,4 @@
+# gc_spyu is being rewritten for yapapi 0.9. it is not usable at the latest tag v0.1.3. thank you for your patience.
 # gc_spyu
 espy cpu model information from specific providers and persistently store for later retrieval.
 
