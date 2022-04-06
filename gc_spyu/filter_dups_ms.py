@@ -9,7 +9,6 @@ from yapapi.strategy import (
     SCORE_REJECTED,
     SCORE_NEUTRAL,
     SCORE_TRUSTED,
-    ComputationHistory,
     MarketStrategy,
 )
 
@@ -31,7 +30,7 @@ class SpyUFilterMS(FilterProviderMS):
                 break
         return match
 
-    async def score_offer(self, offer, history=None):
+    async def score_offer(self, offer):
         name = offer.props["golem.node.id.name"]
         ss = (
             "SELECT COUNT(*), providerId FROM provider WHERE addr = "
@@ -57,9 +56,9 @@ class SpyUFilterMS(FilterProviderMS):
         else:
             debug.dlog(f"scoring {name}@{offer.issuer} count: {count}")
             try:
-                score = await super().score_offer(offer, history)
+                score = await super().score_offer(offer)
             except Exception as e:
-                print("unhandled exception ignored {e}")
+                print(f"unhandled exception ignored: {e}")
                 score = SCORE_NEUTRAL
         if score == SCORE_REJECTED:
             partial_addr = self._find_partial_match(offer.issuer)

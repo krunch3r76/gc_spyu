@@ -173,38 +173,38 @@ class MySummaryLogger(yapapi.log.SummaryLogger):
                     f" {event.exc_info[1]}"
                     f"\nWorker name is {self.id_to_info['event.agr_id']}"
                 )
-        # [ ComputationFinished ]
-        elif isinstance(event, yapapi.events.ComputationFinished):
-            debug.dlog(event)
-            if event.exc_info != None:
-                try:
-                    agr_id = self._jobid_to_agr[event.job_id]
-                    info = self.id_to_info[agr_id]
-                except:
-                    agr_id = "unknown agreement"
-                    info = "no info"
-                else:
-                    self.providersFailed.extend(
-                        [{"address": info["address"], "name": info["name"]}]
-                    )
-                    self._blacklist_provider(info["address"], info["name"])
-                if (
-                    event.exc_info != None
-                    and len(event.exc_info) > 0
-                    and isinstance(event.exc_info[1], TimeoutError)
-                ):
+            else:
 
-                    debug.dlog(
-                        f"? computation timed out ?\n{event}\n" f" {agr_id}\n{info}"
-                    )
-                elif (
-                    event.exc_info != None
-                    and len(event.exc_info) > 0
-                    and isinstance(event.exc_info[1], asyncio.exceptions.CancelledError)
-                ):
-                    debug.dlog(
-                        f"computation cancelled for agreement" f" {agr_id}\n{info}"
-                    )
+                debug.dlog(event)
+                if event.exc_info != None:
+                    try:
+                        agr_id = self._jobid_to_agr[event.job_id]
+                        info = self.id_to_info[agr_id]
+                    except:
+                        agr_id = "unknown agreement"
+                        info = "no info"
+                    else:
+                        self.providersFailed.extend(
+                            [{"address": info["address"], "name": info["name"]}]
+                        )
+                        self._blacklist_provider(info["address"], info["name"])
+                    if (
+                        event.exc_info != None
+                        and len(event.exc_info) > 0
+                        and isinstance(event.exc_info[1], TimeoutError)
+                    ):
+
+                        debug.dlog(
+                            f"? computation timed out ?\n{event}\n" f" {agr_id}\n{info}"
+                        )
+                    elif (
+                        event.exc_info != None
+                        and len(event.exc_info) > 0
+                        and isinstance(event.exc_info[1], asyncio.exceptions.CancelledError)
+                    ):
+                        debug.dlog(
+                            f"computation cancelled for agreement" f" {agr_id}\n{info}"
+                        )
         # [ InvoiceReceived ]
         elif isinstance(event, yapapi.events.InvoiceReceived):
             assert event.agr_id not in self._invoicesReceived, "duplicate" " invoice!"

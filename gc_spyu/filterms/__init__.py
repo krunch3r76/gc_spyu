@@ -5,7 +5,7 @@ import yapapi
 import os, sys # debug sys
 from yapapi import rest
 from typing import Optional
-from yapapi.strategy import SCORE_REJECTED, SCORE_NEUTRAL, SCORE_TRUSTED, ComputationHistory, MarketStrategy
+from yapapi.strategy import SCORE_REJECTED, SCORE_NEUTRAL, SCORE_TRUSTED,  MarketStrategy
 import json
 #from luserset import luserset
 import debug
@@ -89,7 +89,7 @@ class FilterProviderMS(MarketStrategy):
             self._motd=True
 
     async def score_offer(
-            self, offer: rest.market.OfferProposal, history: Optional[ComputationHistory] = None
+            self, offer
             ) -> float:
         seen_rejected=self._seen_rejected
         VERBOSE=self._VERBOSE
@@ -124,9 +124,9 @@ class FilterProviderMS(MarketStrategy):
 
             if not blacklisted and len(provider_names) > 0: # whitelisting
                 if name in provider_names: # match name
-                    score = await self._wrapped.score_offer(offer, history)
+                    score = await self._wrapped.score_offer(offer)
                 elif _partial_match_in(offer.issuer, provider_names): # partial match node address
-                    score = await self._wrapped.score_offer(offer, history)
+                    score = await self._wrapped.score_offer(offer)
                 else:
                     score = SCORE_REJECTED
 
@@ -140,7 +140,7 @@ class FilterProviderMS(MarketStrategy):
                     seen_rejected.add(name)
 
             if score==None:
-                score=await self._wrapped.score_offer(offer, history)
+                score=await self._wrapped.score_offer(offer)
 
         except Exception as e:
             print("[filterms] AN UNHANDLED EXCEPTION OCCURRED", file=sys.stderr)
